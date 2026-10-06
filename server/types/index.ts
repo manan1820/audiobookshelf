@@ -120,6 +120,8 @@ export interface UserAgentParsed {
   }
   device?: {
     type?: string
+    model?: string
+    vendor?: string
   }
 }
 
