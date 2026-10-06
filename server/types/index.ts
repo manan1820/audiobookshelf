@@ -16,6 +16,7 @@ export interface SocketListener {
 
 export interface ILogManager {
   logToFile(logObj: LogObject): Promise<void>
+  getMostRecentCurrentDailyLogs?(): LogObject[] | string
 }
 
 export type AvailabilityOption = 'adminOrUp' | 'userOrUp' | 'guestOrUp' | 'specificUsers'
@@ -753,6 +754,7 @@ declare global {
     authOpenIDMatchExistingBy?: string
     storeMetadataWithItem?: boolean
     metadataFileFormat?: string
+    loggerDailyLogsToKeep?: number
     [key: string]: unknown
   }
 }

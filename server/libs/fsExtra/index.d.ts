@@ -23,3 +23,4 @@ export function readdirSync(path: string): string[]
 export function createReadStream(path: fs.PathLike, options?: BufferEncoding | { flags?: string; encoding?: BufferEncoding; fd?: number; mode?: number; autoClose?: boolean; emitClose?: boolean; start?: number; end?: number; highWaterMark?: number }): fs.ReadStream
 export function createWriteStream(path: fs.PathLike, options?: BufferEncoding | { flags?: string; encoding?: BufferEncoding; fd?: number; mode?: number; autoClose?: boolean; emitClose?: boolean; start?: number; highWaterMark?: number }): fs.WriteStream
 export function chmod(path: fs.PathLike, mode: fs.Mode): Promise<void>
+export function unlink(path: fs.PathLike): Promise<void>
