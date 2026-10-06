@@ -1,44 +1,29 @@
-const { DataTypes, Model, Op } = require('sequelize')
+import { DataTypes, Model, Op, Sequelize } from 'sequelize'
+import type User from './User'
 
 class Session extends Model {
-  constructor(values, options) {
-    super(values, options)
+  declare id: string
+  declare ipAddress: string | null
+  declare userAgent: string | null
+  declare userId: string
+  declare refreshToken: string
+  declare expiresAt: Date
+  declare lastRefreshToken: string | null
+  declare lastRefreshTokenExpiresAt: Date | null
+  declare createdAt: Date
+  declare updatedAt: Date
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {string} */
-    this.ipAddress
-    /** @type {string} */
-    this.userAgent
-    /** @type {Date} */
-    this.createdAt
-    /** @type {Date} */
-    this.updatedAt
-    /** @type {UUIDV4} */
-    this.userId
-    /** @type {Date} */
-    this.expiresAt
-    /** @type {string} */
-    this.lastRefreshToken
-    /** @type {Date} */
-    this.lastRefreshTokenExpiresAt
+  declare user?: User
 
-    // Expanded properties
-
-    /** @type {import('./User').User} */
-    this.user
-  }
-
-  static async createSession(userId, ipAddress, userAgent, refreshToken, expiresAt) {
+  static async createSession(userId: string, ipAddress: string, userAgent: string, refreshToken: string, expiresAt: Date): Promise<Session> {
     const session = await Session.create({ userId, ipAddress, userAgent, refreshToken, expiresAt })
     return session
   }
 
   /**
    * Clean up expired sessions from the database
-   * @returns {Promise<number>} Number of sessions deleted
    */
-  static async cleanupExpiredSessions() {
+  static async cleanupExpiredSessions(): Promise<number> {
     const deletedCount = await Session.destroy({
       where: {
         expiresAt: {
@@ -49,11 +34,14 @@ class Session extends Model {
     return deletedCount
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static override init(sequelize: Sequelize): typeof Session
+  static override init(attributes: unknown, options: unknown): typeof Session
+  static override init(sequelizeOrAttributes: unknown, maybeOptions?: unknown): typeof Session {
+    if (maybeOptions) {
+      return super.init(sequelizeOrAttributes as never, maybeOptions as never) as unknown as typeof Session
+    }
+
+    const sequelize = sequelizeOrAttributes as Sequelize
     super.init(
       {
         id: {
@@ -94,7 +82,9 @@ class Session extends Model {
       }
     })
     Session.belongsTo(user)
+
+    return Session
   }
 }
 
-module.exports = Session
+export = Session
