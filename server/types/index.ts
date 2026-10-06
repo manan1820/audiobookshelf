@@ -702,6 +702,23 @@ export interface AudioTrack extends AudioFileObject {
   startOffset: number
 }
 
+export interface ProgressUpdatePayload {
+  libraryItemId?: string
+  episodeId?: string
+  duration?: number
+  progress?: number
+  currentTime?: number
+  isFinished?: boolean
+  hideFromContinueListening?: boolean
+  ebookLocation?: string
+  ebookProgress?: number
+  finishedAt?: number | string | Date | null
+  lastUpdate?: number | string | Date
+  markAsFinishedTimeRemaining?: number | string
+  markAsFinishedPercentComplete?: number | string
+  [key: string]: unknown
+}
+
 declare global {
   var ServerSettings: {
     sortingIgnorePrefix?: boolean
