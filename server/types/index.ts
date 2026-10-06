@@ -319,3 +319,35 @@ export interface ParsedFullName {
   suffix: string
   error: string[]
 }
+
+export interface NfoMetadata {
+  title?: string
+  subtitle?: string
+  authors?: string[]
+  narrators?: string[]
+  series?: string
+  genres?: string[]
+  tags?: string[]
+  publishedYear?: string
+  sequence?: string
+  abridged?: boolean
+  publisher?: string
+  asin?: string
+  isbn?: string
+  language?: string
+  description?: string
+}
+
+export interface AudioFileMediaMarkerInput {
+  metaTags?: {
+    tagOverdriveMediaMarker?: string | null
+  } | null
+  duration: number
+}
+
+export interface ParsedChapter {
+  id: number
+  start: number
+  end: number
+  title: string
+}
