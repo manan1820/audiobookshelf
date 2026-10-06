@@ -72,21 +72,21 @@ export interface EBookFileScanData {
 }
 
 export interface DeviceInfoJSON {
-  id?: string
-  userId?: string
-  deviceId?: string
-  ipAddress?: string
-  browserName?: string
-  browserVersion?: string
-  osName?: string
-  osVersion?: string
-  deviceType?: string
-  clientVersion?: string
-  manufacturer?: string
-  model?: string
-  sdkVersion?: string
-  clientName?: string
-  deviceName?: string
+  id?: string | null
+  userId?: string | null
+  deviceId?: string | null
+  ipAddress?: string | null
+  browserName?: string | null
+  browserVersion?: string | null
+  osName?: string | null
+  osVersion?: string | null
+  deviceType?: string | null
+  clientVersion?: string | null
+  manufacturer?: string | null
+  model?: string | null
+  sdkVersion?: string | null
+  clientName?: string | null
+  deviceName?: string | null
 }
 
 export interface ClientDeviceInfo {
