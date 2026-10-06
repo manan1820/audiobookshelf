@@ -1,23 +1,20 @@
-const { DataTypes, Model, fn, col } = require('sequelize')
+import { DataTypes, Model, Sequelize, WhereOptions, fn, col } from 'sequelize'
+
+interface AuthorCountRow {
+  authorId: string
+  count: number | string
+}
 
 class BookAuthor extends Model {
-  constructor(values, options) {
-    super(values, options)
+  declare id: string
+  declare bookId: string
+  declare authorId: string
+  declare createdAt: Date
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {UUIDV4} */
-    this.bookId
-    /** @type {UUIDV4} */
-    this.authorId
-    /** @type {Date} */
-    this.createdAt
-  }
-
-  static removeByIds(authorId = null, bookId = null) {
-    const where = {}
-    if (authorId) where.authorId = authorId
-    if (bookId) where.bookId = bookId
+  static removeByIds(authorId: string | null = null, bookId: string | null = null): Promise<number> {
+    const where: WhereOptions = {}
+    if (authorId) (where as Record<string, unknown>).authorId = authorId
+    if (bookId) (where as Record<string, unknown>).bookId = bookId
     return this.destroy({
       where
     })
@@ -25,11 +22,8 @@ class BookAuthor extends Model {
 
   /**
    * Get number of books for author
-   *
-   * @param {string} authorId
-   * @returns {Promise<number>}
    */
-  static getCountForAuthor(authorId) {
+  static getCountForAuthor(authorId: string): Promise<number> {
     return this.count({
       where: {
         authorId
@@ -39,35 +33,34 @@ class BookAuthor extends Model {
 
   /**
    * Get number of books for each author
-   *
-   * @param {string[]} authorIds
-   * @returns {Promise<Record<string, number>>}
    */
-  static async getCountsForAuthors(authorIds) {
+  static async getCountsForAuthors(authorIds: string[]): Promise<Record<string, number>> {
     if (!authorIds.length) return {}
 
-    const rows = await this.findAll({
+    const rows = (await this.findAll({
       attributes: ['authorId', [fn('COUNT', col('id')), 'count']],
       where: {
         authorId: authorIds
       },
       group: ['authorId'],
       raw: true
-    })
+    })) as unknown as AuthorCountRow[]
 
-    /** @type {Record<string, number>} */
-    const counts = {}
+    const counts: Record<string, number> = {}
     for (const row of rows) {
       counts[row.authorId] = Number(row.count)
     }
     return counts
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static override init(sequelize: Sequelize): typeof BookAuthor
+  static override init(attributes: unknown, options: unknown): typeof BookAuthor
+  static override init(sequelizeOrAttributes: unknown, maybeOptions?: unknown): typeof BookAuthor {
+    if (maybeOptions) {
+      return super.init(sequelizeOrAttributes as never, maybeOptions as never) as unknown as typeof BookAuthor
+    }
+
+    const sequelize = sequelizeOrAttributes as Sequelize
     super.init(
       {
         id: {
@@ -105,6 +98,9 @@ class BookAuthor extends Model {
       onDelete: 'CASCADE'
     })
     BookAuthor.belongsTo(author)
+
+    return BookAuthor
   }
 }
-module.exports = BookAuthor
+
+export = BookAuthor
