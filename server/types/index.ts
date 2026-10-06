@@ -737,13 +737,38 @@ export interface FeedOptions {
 }
 
 declare global {
+  var MetadataPath: string | undefined
+  var RouterBasePath: string | undefined
   var ServerSettings: {
     sortingIgnorePrefix?: boolean
     allowIframe?: boolean
     allowedOrigins?: string[]
     authOpenIDMatchExistingBy?: string
+    storeMetadataWithItem?: boolean
+    metadataFileFormat?: string
     [key: string]: unknown
   }
+}
+
+export interface LibraryFileMetadataObject {
+  filename: string
+  ext: string
+  path: string
+  relPath: string
+  size: number
+  mtimeMs: number
+  ctimeMs: number
+  birthtimeMs: number
+  [key: string]: unknown
+}
+
+export interface LibraryFileObject {
+  ino: string
+  isSupplementary?: boolean
+  addedAt?: number
+  updatedAt?: number
+  metadata: LibraryFileMetadataObject
+  [key: string]: unknown
 }
 
 export interface AudioBookmarkObject {
