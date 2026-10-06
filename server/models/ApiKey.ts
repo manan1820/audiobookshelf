@@ -1,43 +1,45 @@
-const { DataTypes, Model, Op } = require('sequelize')
-const jwt = require('jsonwebtoken')
-const { LRUCache } = require('lru-cache')
-const Logger = require('../Logger')
+import { DataTypes, Model, Op, Sequelize } from 'sequelize'
+import jwt, { SignOptions } from 'jsonwebtoken'
+import { LRUCache } from 'lru-cache'
+import Logger from '../Logger'
+import type User from './User'
 
-/**
- * @typedef {Object} ApiKeyPermissions
- * @property {boolean} download
- * @property {boolean} update
- * @property {boolean} delete
- * @property {boolean} upload
- * @property {boolean} createEreader
- * @property {boolean} accessAllLibraries
- * @property {boolean} accessAllTags
- * @property {boolean} accessExplicitContent
- * @property {boolean} selectedTagsNotAccessible
- * @property {string[]} librariesAccessible
- * @property {string[]} itemTagsSelected
- */
+interface ApiKeyPermissions {
+  download: boolean
+  update: boolean
+  delete: boolean
+  upload: boolean
+  createEreader: boolean
+  accessAllLibraries: boolean
+  accessAllTags: boolean
+  accessExplicitContent: boolean
+  selectedTagsNotAccessible: boolean
+  librariesAccessible: string[]
+  itemTagsSelected: string[]
+  [key: string]: unknown
+}
 
 class ApiKeyCache {
+  private cache: LRUCache<string, ApiKey>
+
   constructor() {
-    this.cache = new LRUCache({ max: 100 })
+    this.cache = new LRUCache<string, ApiKey>({ max: 100 })
   }
 
-  getById(id) {
-    const apiKey = this.cache.get(id)
-    return apiKey
+  getById(id: string): ApiKey | undefined {
+    return this.cache.get(id)
   }
 
-  set(apiKey) {
+  set(apiKey: ApiKey): void {
     apiKey.fromCache = true
     this.cache.set(apiKey.id, apiKey)
   }
 
-  delete(apiKeyId) {
+  delete(apiKeyId: string): void {
     this.cache.delete(apiKeyId)
   }
 
-  maybeInvalidate(apiKey) {
+  maybeInvalidate(apiKey: ApiKey): void {
     if (!apiKey.fromCache) this.delete(apiKey.id)
   }
 }
@@ -45,43 +47,27 @@ class ApiKeyCache {
 const apiKeyCache = new ApiKeyCache()
 
 class ApiKey extends Model {
-  constructor(values, options) {
-    super(values, options)
+  declare id: string
+  declare name: string
+  declare description: string | null
+  declare expiresAt: Date | null
+  declare lastUsedAt: Date | null
+  declare isActive: boolean
+  declare permissions: ApiKeyPermissions
+  declare userId: string
+  declare createdByUserId: string | null
+  declare createdAt: Date
+  declare updatedAt: Date
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {string} */
-    this.name
-    /** @type {string} */
-    this.description
-    /** @type {Date} */
-    this.expiresAt
-    /** @type {Date} */
-    this.lastUsedAt
-    /** @type {boolean} */
-    this.isActive
-    /** @type {ApiKeyPermissions} */
-    this.permissions
-    /** @type {Date} */
-    this.createdAt
-    /** @type {Date} */
-    this.updatedAt
-    /** @type {UUIDV4} */
-    this.userId
-    /** @type {UUIDV4} */
-    this.createdByUserId
+  declare user?: User
+  declare createdByUser?: User
 
-    // Expanded properties
-
-    /** @type {import('./User').User} */
-    this.user
-  }
+  fromCache?: boolean
 
   /**
    * Same properties as User.getDefaultPermissions
-   * @returns {ApiKeyPermissions}
    */
-  static getDefaultPermissions() {
+  static getDefaultPermissions(): ApiKeyPermissions {
     return {
       download: true,
       update: true,
@@ -99,36 +85,36 @@ class ApiKey extends Model {
 
   /**
    * Merge permissions from request with default permissions
-   * @param {ApiKeyPermissions} reqPermissions
-   * @returns {ApiKeyPermissions}
    */
-  static mergePermissionsWithDefault(reqPermissions) {
+  static mergePermissionsWithDefault(reqPermissions: unknown): ApiKeyPermissions {
     const permissions = this.getDefaultPermissions()
 
     if (!reqPermissions || typeof reqPermissions !== 'object') {
-      Logger.warn(`[ApiKey] mergePermissionsWithDefault: Invalid permissions: ${reqPermissions}`)
+      Logger.warn(`[ApiKey] mergePermissionsWithDefault: Invalid permissions: ${String(reqPermissions)}`)
       return permissions
     }
 
-    for (const key in reqPermissions) {
-      if (reqPermissions[key] === undefined) {
+    const reqObj = reqPermissions as Record<string, unknown>
+    for (const key in reqObj) {
+      if (reqObj[key] === undefined) {
         Logger.warn(`[ApiKey] mergePermissionsWithDefault: Invalid permission key: ${key}`)
         continue
       }
 
       if (key === 'librariesAccessible' || key === 'itemTagsSelected') {
-        if (!Array.isArray(reqPermissions[key]) || reqPermissions[key].some((value) => typeof value !== 'string')) {
-          Logger.warn(`[ApiKey] mergePermissionsWithDefault: Invalid ${key} value: ${reqPermissions[key]}`)
+        const val = reqObj[key]
+        if (!Array.isArray(val) || val.some((value) => typeof value !== 'string')) {
+          Logger.warn(`[ApiKey] mergePermissionsWithDefault: Invalid ${key} value: ${String(reqObj[key])}`)
           continue
         }
 
-        permissions[key] = reqPermissions[key]
-      } else if (typeof reqPermissions[key] !== 'boolean') {
+        permissions[key] = val as string[]
+      } else if (typeof reqObj[key] !== 'boolean') {
         Logger.warn(`[ApiKey] mergePermissionsWithDefault: Invalid permission value for key ${key}. Should be boolean`)
         continue
+      } else {
+        permissions[key] = reqObj[key] as boolean
       }
-
-      permissions[key] = reqPermissions[key]
     }
 
     return permissions
@@ -136,9 +122,8 @@ class ApiKey extends Model {
 
   /**
    * Deactivate expired api keys
-   * @returns {Promise<number>} Number of api keys affected
    */
-  static async deactivateExpiredApiKeys() {
+  static async deactivateExpiredApiKeys(): Promise<number> {
     const [affectedCount] = await ApiKey.update(
       {
         isActive: false
@@ -157,14 +142,9 @@ class ApiKey extends Model {
 
   /**
    * Generate a new api key
-   * @param {string} tokenSecret
-   * @param {string} keyId
-   * @param {string} name
-   * @param {number} [expiresIn] - Seconds until the api key expires or undefined for no expiration
-   * @returns {Promise<string>}
    */
-  static async generateApiKey(tokenSecret, keyId, name, expiresIn) {
-    const options = {}
+  static async generateApiKey(tokenSecret: string, keyId: string, name: string, expiresIn?: number): Promise<string | null> {
+    const options: SignOptions = {}
     if (expiresIn && !isNaN(expiresIn) && expiresIn > 0) {
       options.expiresIn = expiresIn
     }
@@ -178,9 +158,9 @@ class ApiKey extends Model {
         },
         tokenSecret,
         options,
-        (err, token) => {
-          if (err) {
-            Logger.error(`[ApiKey] Error generating API key: ${err}`)
+        (err: Error | null, token: string | undefined) => {
+          if (err || !token) {
+            Logger.error(`[ApiKey] Error generating API key: ${String(err)}`)
             resolve(null)
           } else {
             resolve(token)
@@ -192,10 +172,8 @@ class ApiKey extends Model {
 
   /**
    * Get an api key by id, from cache or database
-   * @param {string} apiKeyId
-   * @returns {Promise<ApiKey | null>}
    */
-  static async getById(apiKeyId) {
+  static async getById(apiKeyId: string | null | undefined): Promise<ApiKey | null> {
     if (!apiKeyId) return null
 
     const cachedApiKey = apiKeyCache.getById(apiKeyId)
@@ -208,11 +186,14 @@ class ApiKey extends Model {
     return apiKey
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static override init(sequelize: Sequelize): typeof ApiKey
+  static override init(attributes: unknown, options: unknown): typeof ApiKey
+  static override init(sequelizeOrAttributes: unknown, maybeOptions?: unknown): typeof ApiKey {
+    if (maybeOptions) {
+      return super.init(sequelizeOrAttributes as never, maybeOptions as never) as unknown as typeof ApiKey
+    }
+
+    const sequelize = sequelizeOrAttributes as Sequelize
     super.init(
       {
         id: {
@@ -251,22 +232,24 @@ class ApiKey extends Model {
       onDelete: 'SET NULL'
     })
     ApiKey.belongsTo(user, { as: 'createdByUser', foreignKey: 'createdByUserId' })
+
+    return ApiKey
   }
 
-  async update(values, options) {
+  override async update(values: { [key: string]: unknown }, options?: unknown): Promise<this> {
     apiKeyCache.maybeInvalidate(this)
-    return await super.update(values, options)
+    return await super.update(values as never, options as never)
   }
 
-  async save(options) {
+  override async save(options?: unknown): Promise<this> {
     apiKeyCache.maybeInvalidate(this)
-    return await super.save(options)
+    return await super.save(options as never)
   }
 
-  async destroy(options) {
+  override async destroy(options?: unknown): Promise<void> {
     apiKeyCache.delete(this.id)
-    await super.destroy(options)
+    await super.destroy(options as never)
   }
 }
 
-module.exports = ApiKey
+export = ApiKey
