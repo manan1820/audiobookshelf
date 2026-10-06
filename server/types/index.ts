@@ -33,6 +33,44 @@ export interface IUserAccess {
   isUser?: boolean
 }
 
+export interface SeriesSequence {
+  name: string
+  sequence: string | null
+}
+
+export interface BookMetadataObject {
+  title?: string | null
+  subtitle?: string | null
+  authors?: string[]
+  narrators?: string[]
+  series?: SeriesSequence[]
+  genres?: string[]
+  publishedYear?: string | null
+  publishedDate?: string | null
+  publisher?: string | null
+  description?: string | null
+  isbn?: string | null
+  asin?: string | null
+  language?: string | null
+  explicit?: boolean
+  abridged?: boolean
+}
+
+export interface EBookFileObject {
+  ebookFormat: string
+  metadata: {
+    path: string
+    [key: string]: unknown
+  }
+}
+
+export interface EBookFileScanData {
+  path: string
+  ebookFormat: string
+  ebookCoverPath?: string
+  metadata: BookMetadataObject | null
+}
+
 export interface DeviceInfoJSON {
   id?: string
   userId?: string
@@ -271,3 +309,13 @@ export type SupportedAudioType =
 export type SupportedEbookType = 'epub' | 'pdf' | 'mobi' | 'azw3' | 'cbr' | 'cbz'
 export type TextFileType = 'txt' | 'nfo'
 export type MetadataFileType = 'opf' | 'abs' | 'xml' | 'json'
+
+export interface ParsedFullName {
+  title: string
+  first: string
+  middle: string
+  last: string
+  nick: string
+  suffix: string
+  error: string[]
+}
