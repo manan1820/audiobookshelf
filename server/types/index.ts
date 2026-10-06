@@ -691,7 +691,7 @@ export interface AudioFileObject {
   channelLayout?: string | null
   chapters?: ChapterObject[]
   embeddedCoverArt?: string | null
-  metaTags?: Record<string, unknown>
+  metaTags?: Record<string, unknown> | object | null
   mimeType?: string | null
   [key: string]: unknown
 }
