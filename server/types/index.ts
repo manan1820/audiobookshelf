@@ -649,6 +649,59 @@ export interface AbMergeEncodeOptions {
   [key: string]: unknown
 }
 
+export interface ChapterObject {
+  id: number
+  start: number
+  end: number
+  title: string
+}
+
+export interface AudioFileMetadata {
+  filename: string
+  ext: string
+  path: string
+  relPath?: string
+  size: number
+  mtimeMs: number
+  ctimeMs: number
+  birthtimeMs: number
+  [key: string]: unknown
+}
+
+export interface AudioFileObject {
+  index: number | null
+  ino: string
+  metadata: AudioFileMetadata
+  addedAt?: number | null
+  updatedAt?: number | null
+  trackNumFromMeta?: number | null
+  discNumFromMeta?: number | null
+  trackNumFromFilename?: number | null
+  discNumFromFilename?: number | null
+  manuallyVerified?: boolean
+  exclude?: boolean
+  error?: string | null
+  format?: string | null
+  duration?: number | null
+  bitRate?: number | null
+  language?: string | null
+  codec?: string | null
+  timeBase?: string | null
+  channels?: number | null
+  channelLayout?: string | null
+  chapters?: ChapterObject[]
+  embeddedCoverArt?: string | null
+  metaTags?: Record<string, unknown>
+  mimeType?: string | null
+  [key: string]: unknown
+}
+
+export interface AudioTrack extends AudioFileObject {
+  title: string
+  contentUrl: string
+  startOffset: number
+}
+
 declare global {
   var ServerSettings: {
     sortingIgnorePrefix?: boolean
