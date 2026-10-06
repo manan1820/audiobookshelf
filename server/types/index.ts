@@ -730,6 +730,12 @@ export interface ProgressUpdatePayload {
   [key: string]: unknown
 }
 
+export interface FeedOptions {
+  preventIndexing?: boolean
+  ownerName?: string | null
+  ownerEmail?: string | null
+}
+
 declare global {
   var ServerSettings: {
     sortingIgnorePrefix?: boolean
