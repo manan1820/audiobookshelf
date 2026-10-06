@@ -1,22 +1,28 @@
-module.exports.ScanResult = {
+export const ScanResult = {
   NOTHING: 0,
   ADDED: 1,
   UPDATED: 2,
   REMOVED: 3,
   UPTODATE: 4
-}
+} as const
 
-module.exports.BookCoverAspectRatio = {
+export type ScanResultType = (typeof ScanResult)[keyof typeof ScanResult]
+
+export const BookCoverAspectRatio = {
   STANDARD: 0, // 1.6:1
   SQUARE: 1
-}
+} as const
 
-module.exports.BookshelfView = {
+export type BookCoverAspectRatioType = (typeof BookCoverAspectRatio)[keyof typeof BookCoverAspectRatio]
+
+export const BookshelfView = {
   STANDARD: 0,
   DETAIL: 1
-}
+} as const
 
-module.exports.LogLevel = {
+export type BookshelfViewType = (typeof BookshelfView)[keyof typeof BookshelfView]
+
+export const LogLevel = {
   TRACE: 0,
   DEBUG: 1,
   INFO: 2,
@@ -24,16 +30,21 @@ module.exports.LogLevel = {
   ERROR: 4,
   FATAL: 5,
   NOTE: 6
-}
+} as const
 
-module.exports.PlayMethod = {
+export type LogLevelType = (typeof LogLevel)[keyof typeof LogLevel]
+export type LogLevelName = keyof typeof LogLevel
+
+export const PlayMethod = {
   DIRECTPLAY: 0,
   DIRECTSTREAM: 1,
   TRANSCODE: 2,
   LOCAL: 3
-}
+} as const
 
-module.exports.AudioMimeType = {
+export type PlayMethodType = (typeof PlayMethod)[keyof typeof PlayMethod]
+
+export const AudioMimeType = {
   MP3: 'audio/mpeg',
   M4B: 'audio/mp4',
   M4A: 'audio/mp4',
@@ -55,4 +66,6 @@ module.exports.AudioMimeType = {
   CAF: 'audio/x-caf',
   MPEG: 'audio/mpeg',
   MPG: 'audio/mpeg'
-}
+} as const
+
+export type AudioMimeTypeType = (typeof AudioMimeType)[keyof typeof AudioMimeType]

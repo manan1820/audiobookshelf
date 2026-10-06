@@ -1,28 +1,45 @@
-const uuidv4 = require('uuid').v4
-const { stripAllTags } = require('../utils/htmlSanitizer')
+import { v4 as uuidv4 } from 'uuid'
+import { stripAllTags } from '../utils/htmlSanitizer'
+import type { ClientDeviceInfo, DeviceInfoJSON, UserAgentParsed } from '../types'
 
 class DeviceInfo {
-  /** @type {string[]} Fields to sanitize when loading from stored data */
-  static stringFields = ['deviceId', 'clientVersion', 'manufacturer', 'model', 'sdkVersion', 'clientName', 'deviceName']
+  static readonly stringFields = ['deviceId', 'clientVersion', 'manufacturer', 'model', 'sdkVersion', 'clientName', 'deviceName'] as const
 
-  constructor(deviceInfo = null) {
+  id: string | null
+  userId: string | null
+  deviceId: string | null
+  ipAddress: string | null
+
+  browserName: string | null
+  browserVersion: string | null
+  osName: string | null
+  osVersion: string | null
+  deviceType: string | null
+
+  clientVersion: string | null
+  manufacturer: string | null
+  model: string | null
+  sdkVersion: string | null
+
+  clientName: string | null
+  deviceName: string | null
+
+  constructor(deviceInfo: Record<string, unknown> | null = null) {
     this.id = null
     this.userId = null
     this.deviceId = null
     this.ipAddress = null
 
-    // From User Agent (see: https://www.npmjs.com/package/ua-parser-js)
     this.browserName = null
     this.browserVersion = null
     this.osName = null
     this.osVersion = null
     this.deviceType = null
 
-    // From client
     this.clientVersion = null
     this.manufacturer = null
     this.model = null
-    this.sdkVersion = null // Android Only
+    this.sdkVersion = null
 
     this.clientName = null
     this.deviceName = null
@@ -32,16 +49,18 @@ class DeviceInfo {
     }
   }
 
-  construct(deviceInfo) {
+  construct(deviceInfo: Record<string, unknown>): void {
+    const stringFieldList: readonly string[] = DeviceInfo.stringFields
+    const instanceRecord = this as unknown as Record<string, unknown>
     for (const key in deviceInfo) {
-      if (deviceInfo[key] !== undefined && this[key] !== undefined) {
-        this[key] = DeviceInfo.stringFields.includes(key) ? stripAllTags(deviceInfo[key]) : deviceInfo[key]
+      if (deviceInfo[key] !== undefined && instanceRecord[key] !== undefined) {
+        instanceRecord[key] = stringFieldList.includes(key) ? stripAllTags(deviceInfo[key]) : deviceInfo[key]
       }
     }
   }
 
-  toJSON() {
-    const obj = {
+  toJSON(): DeviceInfoJSON {
+    const obj: Record<string, unknown> = {
       id: this.id,
       userId: this.userId,
       deviceId: this.deviceId,
@@ -63,35 +82,39 @@ class DeviceInfo {
         delete obj[key]
       }
     }
-    return obj
+    return obj as DeviceInfoJSON
   }
 
-  get deviceDescription() {
+  get deviceDescription(): string {
     if (this.model) {
-      // Set from mobile apps
       if (this.sdkVersion) return `${this.model} SDK ${this.sdkVersion} / v${this.clientVersion}`
       return `${this.model} / v${this.clientVersion}`
     }
     return `${this.osName} ${this.osVersion} / ${this.browserName}`
   }
 
-  // When client doesn't send a device id
-  getTempDeviceId() {
+  getTempDeviceId(): string {
     const keys = [this.userId, this.browserName, this.browserVersion, this.osName, this.osVersion, this.clientVersion, this.manufacturer, this.model, this.sdkVersion, this.ipAddress].map((k) => k || '')
     return 'temp-' + Buffer.from(keys.join('-'), 'utf-8').toString('base64')
   }
 
-  setData(ip, ua, clientDeviceInfo, serverVersion, userId) {
+  setData(
+    ip: string | null | undefined,
+    ua: UserAgentParsed | null | undefined,
+    clientDeviceInfo: ClientDeviceInfo | null | undefined,
+    serverVersion: string,
+    userId: string
+  ): void {
     this.id = uuidv4()
     this.userId = userId
     this.deviceId = clientDeviceInfo?.deviceId || this.id
     this.ipAddress = ip || null
 
-    this.browserName = ua?.browser.name || null
-    this.browserVersion = ua?.browser.version || null
-    this.osName = ua?.os.name || null
-    this.osVersion = ua?.os.version || null
-    this.deviceType = ua?.device.type || null
+    this.browserName = ua?.browser?.name || null
+    this.browserVersion = ua?.browser?.version || null
+    this.osName = ua?.os?.name || null
+    this.osVersion = ua?.os?.version || null
+    this.deviceType = ua?.device?.type || null
 
     this.clientVersion = stripAllTags(clientDeviceInfo?.clientVersion) || serverVersion
     this.manufacturer = stripAllTags(clientDeviceInfo?.manufacturer) || null
@@ -122,16 +145,19 @@ class DeviceInfo {
     }
   }
 
-  update(deviceInfo) {
-    const deviceInfoJson = deviceInfo.toJSON ? deviceInfo.toJSON() : deviceInfo
-    const existingDeviceInfoJson = this.toJSON()
+  update(deviceInfo: DeviceInfo | Record<string, unknown>): boolean {
+    const deviceInfoJson = (
+      typeof (deviceInfo as DeviceInfo).toJSON === 'function' ? (deviceInfo as DeviceInfo).toJSON() : deviceInfo
+    ) as Record<string, unknown>
+    const existingDeviceInfoJson = this.toJSON() as Record<string, unknown>
+    const instanceRecord = this as unknown as Record<string, unknown>
 
     let hasUpdates = false
     for (const key in deviceInfoJson) {
       if (['id', 'deviceId'].includes(key)) continue
 
       if (deviceInfoJson[key] !== existingDeviceInfoJson[key]) {
-        this[key] = deviceInfoJson[key]
+        instanceRecord[key] = deviceInfoJson[key]
         hasUpdates = true
       }
     }
@@ -140,7 +166,7 @@ class DeviceInfo {
       if (['id', 'deviceId'].includes(key)) continue
 
       if (existingDeviceInfoJson[key] && !deviceInfoJson[key]) {
-        this[key] = null
+        instanceRecord[key] = null
         hasUpdates = true
       }
     }
@@ -148,4 +174,5 @@ class DeviceInfo {
     return hasUpdates
   }
 }
-module.exports = DeviceInfo
+
+export = DeviceInfo

@@ -1,11 +1,25 @@
-const Path = require('path')
-const date = require('../libs/dateAndTime')
-const version = require('../../package.json').version
+import Path from 'path'
+import date from '../libs/dateAndTime'
+import { version } from '../../package.json'
+import type { BackupData, BackupJSON } from '../types'
 
 class Backup {
-  constructor(data = null) {
+  id: string | null
+  key: string | null // Special key for pre-version checks
+  datePretty: string | null
+
+  backupDirPath: string | null
+  filename: string | null
+  path: string | null
+  fullPath: string | null
+  serverVersion: string | null
+
+  fileSize: number | null
+  createdAt: number | null
+
+  constructor(data: BackupData | null = null) {
     this.id = null
-    this.key = null // Special key for pre-version checks
+    this.key = null
     this.datePretty = null
 
     this.backupDirPath = null
@@ -22,8 +36,8 @@ class Backup {
     }
   }
 
-  get detailsString() {
-    const details = []
+  get detailsString(): string {
+    const details: (string | number | null)[] = []
     details.push(this.id)
     details.push(this.key)
     details.push(this.createdAt)
@@ -31,13 +45,13 @@ class Backup {
     return details.join('\n')
   }
 
-  construct(data) {
+  construct(data: BackupData): void {
     this.id = data.details[0]
-    this.key = data.details[1]
-    if (this.key == 1) this.key = null // v2.2.23 and below backups stored '1' here
+    const keyVal = data.details[1]
+    this.key = keyVal === 1 || keyVal === '1' ? null : String(keyVal)
 
     this.createdAt = Number(data.details[2])
-    this.serverVersion = data.details[3] || null
+    this.serverVersion = data.details[3] ? String(data.details[3]) : null
 
     this.datePretty = date.format(new Date(this.createdAt), 'ddd, MMM D YYYY HH:mm')
 
@@ -47,7 +61,7 @@ class Backup {
     this.fullPath = data.fullPath
   }
 
-  toJSON() {
+  toJSON(): BackupJSON {
     return {
       id: this.id,
       key: this.key,
@@ -62,7 +76,7 @@ class Backup {
     }
   }
 
-  setData(backupDirPath) {
+  setData(backupDirPath: string): void {
     this.id = date.format(new Date(), 'YYYY-MM-DD[T]HHmm')
     this.key = 'sqlite'
     this.datePretty = date.format(new Date(), 'ddd, MMM D YYYY HH:mm')
@@ -78,4 +92,5 @@ class Backup {
     this.createdAt = Date.now()
   }
 }
-module.exports = Backup
+
+export = Backup

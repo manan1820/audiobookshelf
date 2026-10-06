@@ -31,7 +31,9 @@ const rules = {
   'no-global-assign': 'error'
 }
 
-export default [
+import tseslint from 'typescript-eslint'
+
+export default tseslint.config(
   {
     ignores: ['**/node_modules/**', 'client/**', 'dist/**', 'dist-server/**', 'coverage/**', 'server/libs/**']
   },
@@ -55,5 +57,31 @@ export default [
       }
     },
     rules
+  },
+  {
+    files: ['server/**/*.ts'],
+    extends: [tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      'no-redeclare': 'off',
+      '@typescript-eslint/no-redeclare': 'error',
+      'no-dupe-class-members': 'off',
+      '@typescript-eslint/no-dupe-class-members': 'error',
+      'no-undef': 'off'
+    }
+  },
+  {
+    files: ['test/**/*.ts'],
+    extends: [tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-expressions': 'off',
+      'no-redeclare': 'off',
+      '@typescript-eslint/no-redeclare': 'error',
+      'no-dupe-class-members': 'off',
+      '@typescript-eslint/no-dupe-class-members': 'error',
+      'no-undef': 'off'
+    }
   }
-]
+)
+

@@ -1,9 +1,21 @@
-const Logger = require('../../Logger')
-const Notification = require('../Notification')
-const { isNullOrNaN } = require('../../utils')
+import Notification from '../Notification'
+import Logger from '../../Logger'
+import type { NotificationPayload, NotificationSettingsData, NotificationSettingsJSON } from '../../types'
+
+function isNullOrNaN(val: unknown): boolean {
+  return val === null || val === undefined || isNaN(Number(val))
+}
 
 class NotificationSettings {
-  constructor(settings = null) {
+  id: string
+  appriseType: string
+  appriseApiUrl: string | null
+  notifications: Notification[]
+  maxFailedAttempts: number
+  maxNotificationQueue: number
+  notificationDelay: number
+
+  constructor(settings: NotificationSettingsData | null = null) {
     this.id = 'notification-settings'
     this.appriseType = 'api'
     this.appriseApiUrl = null
@@ -17,8 +29,8 @@ class NotificationSettings {
     }
   }
 
-  construct(settings) {
-    this.appriseType = settings.appriseType
+  construct(settings: NotificationSettingsData): void {
+    this.appriseType = settings.appriseType || 'api'
     this.appriseApiUrl = settings.appriseApiUrl || null
     this.notifications = (settings.notifications || []).map((n) => new Notification(n))
     this.maxFailedAttempts = settings.maxFailedAttempts || 5
@@ -26,7 +38,7 @@ class NotificationSettings {
     this.notificationDelay = settings.notificationDelay || 1000
   }
 
-  toJSON() {
+  toJSON(): NotificationSettingsJSON {
     return {
       id: this.id,
       appriseType: this.appriseType,
@@ -38,31 +50,23 @@ class NotificationSettings {
     }
   }
 
-  get isUseable() {
+  get isUseable(): boolean {
     return !!this.appriseApiUrl
   }
 
-  /**
-   * @param {string} eventName
-   * @returns {boolean} - TRUE if there are active notifications for the event
-   */
-  getHasActiveNotificationsForEvent(eventName) {
+  getHasActiveNotificationsForEvent(eventName: string): boolean {
     return this.notifications.some((n) => n.eventName === eventName && n.enabled)
   }
 
-  /**
-   * @param {string} eventName
-   * @returns {Notification[]}
-   */
-  getActiveNotificationsForEvent(eventName) {
+  getActiveNotificationsForEvent(eventName: string): Notification[] {
     return this.notifications.filter((n) => n.eventName === eventName && n.enabled)
   }
 
-  getNotification(id) {
+  getNotification(id: string): Notification | undefined {
     return this.notifications.find((n) => n.id === id)
   }
 
-  removeNotification(id) {
+  removeNotification(id: string): boolean {
     if (this.notifications.some((n) => n.id === id)) {
       this.notifications = this.notifications.filter((n) => n.id !== id)
       return true
@@ -70,33 +74,37 @@ class NotificationSettings {
     return false
   }
 
-  update(payload) {
+  update(payload: Partial<NotificationSettingsData> | null | undefined): boolean {
     if (!payload) return false
 
-    var hasUpdates = false
-    if (payload.appriseApiUrl !== this.appriseApiUrl) {
+    let hasUpdates = false
+    if (payload.appriseApiUrl !== undefined && payload.appriseApiUrl !== this.appriseApiUrl) {
       this.appriseApiUrl = payload.appriseApiUrl || null
       hasUpdates = true
     }
 
-    const _maxFailedAttempts = isNullOrNaN(payload.maxFailedAttempts) ? 5 : Number(payload.maxFailedAttempts)
-    if (_maxFailedAttempts !== this.maxFailedAttempts) {
-      this.maxFailedAttempts = _maxFailedAttempts
-      hasUpdates = true
+    if (payload.maxFailedAttempts !== undefined) {
+      const _maxFailedAttempts = isNullOrNaN(payload.maxFailedAttempts) ? 5 : Number(payload.maxFailedAttempts)
+      if (_maxFailedAttempts !== this.maxFailedAttempts) {
+        this.maxFailedAttempts = _maxFailedAttempts
+        hasUpdates = true
+      }
     }
 
-    const _maxNotificationQueue = isNullOrNaN(payload.maxNotificationQueue) ? 20 : Number(payload.maxNotificationQueue)
-    if (_maxNotificationQueue !== this.maxNotificationQueue) {
-      this.maxNotificationQueue = _maxNotificationQueue
-      hasUpdates = true
+    if (payload.maxNotificationQueue !== undefined) {
+      const _maxNotificationQueue = isNullOrNaN(payload.maxNotificationQueue) ? 20 : Number(payload.maxNotificationQueue)
+      if (_maxNotificationQueue !== this.maxNotificationQueue) {
+        this.maxNotificationQueue = _maxNotificationQueue
+        hasUpdates = true
+      }
     }
 
     return hasUpdates
   }
 
-  createNotification(payload) {
+  createNotification(payload: NotificationPayload | null | undefined): boolean {
     if (!payload) return false
-    if (!payload.eventName || !payload.urls.length) return false
+    if (!payload.eventName || !payload.urls || !payload.urls.length) return false
 
     const notification = new Notification()
     notification.setData(payload)
@@ -104,8 +112,8 @@ class NotificationSettings {
     return true
   }
 
-  updateNotification(payload) {
-    if (!payload) return false
+  updateNotification(payload: NotificationPayload | null | undefined): boolean {
+    if (!payload || !payload.id) return false
     const notification = this.notifications.find((n) => n.id === payload.id)
     if (!notification) {
       Logger.error(`[NotificationSettings] updateNotification: Notification not found ${payload.id}`)
@@ -115,4 +123,5 @@ class NotificationSettings {
     return notification.update(payload)
   }
 }
-module.exports = NotificationSettings
+
+export = NotificationSettings

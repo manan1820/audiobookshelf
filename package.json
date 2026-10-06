@@ -62,14 +62,25 @@
     "xml2js": "^0.5.0"
   },
   "devDependencies": {
+    "@types/chai": "^5.2.3",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.19.0",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^24.13.6",
+    "@types/passport": "^1.0.17",
+    "@types/semver": "^7.8.0",
+    "@types/sinon": "^22.0.0",
+    "@types/uuid": "^10.0.0",
+    "@types/xml2js": "^0.4.14",
     "chai": "^4.3.10",
     "eslint": "^10.11.0",
     "mocha": "^10.2.0",
     "nodemon": "^2.0.20",
     "nyc": "^15.1.0",
     "sinon": "^17.0.1",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.71.1"
   },
   "allowScripts": {
     "sqlite3@5.1.7": true

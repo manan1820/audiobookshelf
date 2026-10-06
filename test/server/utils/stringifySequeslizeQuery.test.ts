@@ -1,6 +1,6 @@
-const { expect } = require('chai')
-const stringifySequelizeQuery = require('../../../server/utils/stringifySequelizeQuery')
-const Sequelize = require('sequelize')
+import { expect } from 'chai'
+import Sequelize from 'sequelize'
+import stringifySequelizeQuery from '../../../server/utils/stringifySequelizeQuery'
 
 class DummyClass {}
 
@@ -43,7 +43,7 @@ describe('stringifySequelizeQuery', () => {
 
   it('should ignore non-class functions', () => {
     const query = {
-      logging: (query) => console.log(query)
+      logging: (q: unknown) => console.log(q)
     }
 
     const result = stringifySequelizeQuery(query)

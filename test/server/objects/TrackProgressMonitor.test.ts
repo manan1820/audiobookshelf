@@ -1,15 +1,13 @@
-const chai = require('chai')
-const sinon = require('sinon')
-const TrackProgressMonitor = require('../../../server/objects/TrackProgressMonitor')
-
-const expect = chai.expect
+import { expect } from 'chai'
+import sinon from 'sinon'
+import TrackProgressMonitor from '../../../server/objects/TrackProgressMonitor'
 
 describe('TrackProgressMonitor', () => {
-  let trackDurations
-  let trackStartedCallback
-  let progressCallback
-  let trackFinishedCallback
-  let monitor
+  let trackDurations: number[]
+  let trackStartedCallback: sinon.SinonSpy
+  let progressCallback: sinon.SinonSpy
+  let trackFinishedCallback: sinon.SinonSpy
+  let monitor: TrackProgressMonitor
 
   beforeEach(() => {
     trackDurations = [10, 40, 50]

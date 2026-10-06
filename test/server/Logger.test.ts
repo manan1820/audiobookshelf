@@ -1,17 +1,19 @@
-const { expect } = require('chai')
-const sinon = require('sinon')
-const Logger = require('../../server/Logger') // Adjust the path as needed
-const { LogLevel } = require('../../server/utils/constants')
-const date = require('../../server/libs/dateAndTime')
-const util = require('util')
+import { expect } from 'chai'
+import sinon from 'sinon'
+import util from 'util'
+import Logger from '../../server/Logger'
+import { LogLevel } from '../../server/utils/constants'
+import date from '../../server/libs/dateAndTime'
+import type { ILogManager } from '../../server/types'
 
 describe('Logger', function () {
-  let consoleTraceStub
-  let consoleDebugStub
-  let consoleInfoStub
-  let consoleWarnStub
-  let consoleErrorStub
-  let consoleLogStub
+  let consoleTraceStub: sinon.SinonStub
+  let consoleDebugStub: sinon.SinonStub
+  let consoleInfoStub: sinon.SinonStub
+  let consoleWarnStub: sinon.SinonStub
+  let consoleErrorStub: sinon.SinonStub
+  let consoleLogStub: sinon.SinonStub
+  let logToFileStub: sinon.SinonStub
 
   beforeEach(function () {
     // Stub the date format function to return a consistent timestamp
@@ -26,9 +28,10 @@ describe('Logger', function () {
     consoleErrorStub = sinon.stub(console, 'error')
     consoleLogStub = sinon.stub(console, 'log')
     // Initialize the Logger's logManager as a mock object
+    logToFileStub = sinon.stub().resolves()
     Logger.logManager = {
-      logToFile: sinon.stub().resolves()
-    }
+      logToFile: logToFileStub
+    } as ILogManager
   })
 
   afterEach(function () {
@@ -133,9 +136,9 @@ describe('Logger', function () {
 
       expect(consoleDebugStub.calledOnce).to.be.true
       expect(consoleDebugStub.calledWithExactly('[2024-09-10 12:34:56.789] DEBUG:', ...logArgs)).to.be.true
-      expect(Logger.logManager.logToFile.calledOnce).to.be.true
+      expect(logToFileStub.calledOnce).to.be.true
       expect(
-        Logger.logManager.logToFile.calledWithExactly({
+        logToFileStub.calledWithExactly({
           timestamp: '2024-09-10 12:34:56.789',
           source: 'some/source.js',
           message: 'Test message',
@@ -156,7 +159,7 @@ describe('Logger', function () {
 
       // Verify console.debug is not called
       expect(consoleDebugStub.called).to.be.false
-      expect(Logger.logManager.logToFile.called).to.be.false
+      expect(logToFileStub.called).to.be.false
     })
 
     it('should emit log to all connected sockets with appropriate log level', async function () {
@@ -198,9 +201,9 @@ describe('Logger', function () {
       // Assert
       expect(consoleErrorStub.calledOnce).to.be.true
       expect(consoleErrorStub.calledWithExactly('[2024-09-10 12:34:56.789] FATAL:', ...logArgs)).to.be.true
-      expect(Logger.logManager.logToFile.calledOnce).to.be.true
+      expect(logToFileStub.calledOnce).to.be.true
       expect(
-        Logger.logManager.logToFile.calledWithExactly({
+        logToFileStub.calledWithExactly({
           timestamp: '2024-09-10 12:34:56.789',
           source: 'some/source.js',
           message: 'Fatal error',
@@ -222,9 +225,9 @@ describe('Logger', function () {
       // Assert
       expect(consoleLogStub.calledOnce).to.be.true
       expect(consoleLogStub.calledWithExactly('[2024-09-10 12:34:56.789] NOTE:', ...logArgs)).to.be.true
-      expect(Logger.logManager.logToFile.calledOnce).to.be.true
+      expect(logToFileStub.calledOnce).to.be.true
       expect(
-        Logger.logManager.logToFile.calledWithExactly({
+        logToFileStub.calledWithExactly({
           timestamp: '2024-09-10 12:34:56.789',
           source: 'some/source.js',
           message: 'Note message',
@@ -246,8 +249,8 @@ describe('Logger', function () {
       // Assert
       expect(consoleDebugStub.calledOnce).to.be.true
       expect(consoleDebugStub.calledWithExactly('[2024-09-10 12:34:56.789] DEBUG:', 'Logging object:', obj)).to.be.true
-      expect(Logger.logManager.logToFile.calledOnce).to.be.true
-      expect(Logger.logManager.logToFile.firstCall.args[0].message).to.equal('Logging object: ' + util.inspect(obj))
+      expect(logToFileStub.calledOnce).to.be.true
+      expect(logToFileStub.firstCall.args[0].message).to.equal('Logging object: ' + util.inspect(obj))
     })
   })
 

@@ -1,11 +1,18 @@
-const { expect } = require('chai')
+import { expect } from 'chai'
+import { getRequestOrigin, getRequestProtocol, isRequestSecure, type RequestLike } from '../../../server/utils/requestUtils'
 
-const { isRequestSecure, getRequestProtocol, getRequestOrigin } = require('../../../server/utils/requestUtils')
-
-function mockReq({ secure = false, host = 'books.example.com', xForwardedProto = null } = {}) {
+function mockReq({
+  secure = false,
+  host = 'books.example.com',
+  xForwardedProto = null
+}: {
+  secure?: boolean
+  host?: string
+  xForwardedProto?: string | null
+} = {}): RequestLike {
   return {
     secure,
-    get(header) {
+    get(header: string) {
       if (header === 'host') return host
       if (header === 'x-forwarded-proto') return xForwardedProto
       return null

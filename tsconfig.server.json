@@ -13,8 +13,11 @@
     "noEmitOnError": true,
     "incremental": true,
     "tsBuildInfoFile": "dist-server/.tsbuildinfo",
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
   },
-  "include": ["index.js", "dev.js", "server/**/*.js", "server/**/*.ts", "test/**/*.js", "test/**/*.ts"],
-  "exclude": ["node_modules", "dist-server", "client", "**/*.d.ts"]
+  "include": ["index.js", "dev.js", "server/**/*.js", "server/**/*.ts", "server/**/*.d.ts", "test/**/*.js", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist-server", "client"]
 }
+
