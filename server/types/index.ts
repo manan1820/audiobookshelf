@@ -351,3 +351,81 @@ export interface ParsedChapter {
   end: number
   title: string
 }
+
+export interface NotificationEventData {
+  name: string
+  requiresLibrary: boolean
+  libraryMediaType?: string
+  description: string
+  descriptionKey: string
+  variables: string[]
+  defaults: {
+    title: string
+    body: string
+  }
+  testData: Record<string, string | number>
+}
+
+export interface NotificationDataStore {
+  events: NotificationEventData[]
+}
+
+export interface FilePathItem {
+  name: string
+  path: string
+  reldirpath: string
+  fullpath: string
+  extension: string
+  deep: number
+}
+
+export interface FileTimestampsWithIno {
+  size: number
+  mtimeMs: number
+  ctimeMs: number
+  birthtimeMs: number
+  ino: string
+}
+
+export interface DirectoryInfo {
+  path: string
+  dirname: string
+  level: number
+}
+
+export interface PendingFileUpdate {
+  path: string
+  relPath: string
+  [key: string]: unknown
+}
+
+export interface FileMetadataJSON {
+  filename: string | null
+  ext: string | null
+  path: string | null
+  relPath: string | null
+  size: number | null
+  mtimeMs: number | null
+  ctimeMs: number | null
+  birthtimeMs: number | null
+}
+
+export interface LibraryFileJSON {
+  ino: string | null
+  metadata: FileMetadataJSON
+  isSupplementary: boolean | null
+  addedAt: number | null
+  updatedAt: number | null
+  fileType: string
+}
+
+export interface LibraryItemFilenameMetadata {
+  title?: string | null
+  subtitle?: string | null
+  asin?: string | null
+  authors?: string[]
+  narrators?: string[]
+  seriesName?: string | null
+  seriesSequence?: string | null
+  publishedYear?: string | null
+}

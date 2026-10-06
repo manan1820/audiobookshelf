@@ -1,7 +1,7 @@
 import Path from 'path'
 import date from '../libs/dateAndTime'
 import * as fs from '../libs/fsExtra'
-import fileUtils from '../utils/fileUtils'
+import * as fileUtils from '../utils/fileUtils'
 import Logger from '../Logger'
 import type { DailyLogJSON, LogObject } from '../types'
 

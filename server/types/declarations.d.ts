@@ -18,3 +18,10 @@ declare module '*/libs/uaParser' {
   export default uaParser
   export = uaParser
 }
+
+declare module 'ssrf-req-filter' {
+  import { Agent as HttpAgent } from 'http'
+  import { Agent as HttpsAgent } from 'https'
+  function ssrfFilter(url: string): HttpAgent | HttpsAgent
+  export = ssrfFilter
+}

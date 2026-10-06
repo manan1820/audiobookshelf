@@ -1,55 +1,54 @@
-const axios = require('axios')
-const Path = require('path')
-const ssrfFilter = require('ssrf-req-filter')
-const exec = require('child_process').exec
-const fs = require('../libs/fsExtra')
-const rra = require('../libs/recursiveReaddirAsync')
-const Logger = require('../Logger')
-const { AudioMimeType } = require('./constants')
+import axios from 'axios'
+import Path from 'path'
+import ssrfFilter from 'ssrf-req-filter'
+import { exec } from 'child_process'
+import fs from '../libs/fsExtra'
+import * as rra from '../libs/recursiveReaddirAsync'
+import Logger from '../Logger'
+import { AudioMimeType } from './constants'
+import { DirectoryInfo, FilePathItem, FileTimestampsWithIno, PendingFileUpdate } from '../types'
+
+interface GlobalConfig {
+  isWin?: boolean
+  DisableSsrfRequestFilter?: (url: string) => boolean
+}
 
 /**
  * Make sure folder separator is POSIX for Windows file paths. e.g. "C:\Users\Abs" becomes "C:/Users/Abs"
- *
- * @param {String} path - Ugly file path
- * @return {String} Pretty posix file path
  */
-const filePathToPOSIX = (path) => {
-  if (!global.isWin || !path) return path
+export const filePathToPOSIX = (path?: string | null): string => {
+  if (!path) return ''
+  const isWin = (global as unknown as GlobalConfig).isWin
+  if (!isWin) return path
   return path.startsWith('\\\\') ? '\\\\' + path.slice(2).replace(/\\/g, '/') : path.replace(/\\/g, '/')
 }
-module.exports.filePathToPOSIX = filePathToPOSIX
 
 /**
  * Check path is a child of or equal to another path
- *
- * @param {string} parentPath
- * @param {string} childPath
- * @returns {boolean}
  */
-function isSameOrSubPath(parentPath, childPath) {
-  parentPath = filePathToPOSIX(parentPath)
-  childPath = filePathToPOSIX(childPath)
-  if (parentPath === childPath) return true
-  const relativePath = Path.relative(parentPath, childPath)
+export function isSameOrSubPath(parentPath: string, childPath: string): boolean {
+  const pPath = filePathToPOSIX(parentPath)
+  const cPath = filePathToPOSIX(childPath)
+  if (pPath === cPath) return true
+  const relativePath = Path.relative(pPath, cPath)
   return (
-    relativePath === '' || // Same path (e.g. parentPath = '/a/b/', childPath = '/a/b')
-    (!relativePath.startsWith('..') && !Path.isAbsolute(relativePath)) // Sub path
+    relativePath === '' ||
+    (!relativePath.startsWith('..') && !Path.isAbsolute(relativePath))
   )
 }
-module.exports.isSameOrSubPath = isSameOrSubPath
 
-function getFileStat(path) {
+export async function getFileStat(path: string): Promise<import('fs').Stats | null> {
   try {
-    return fs.stat(path)
-  } catch (err) {
+    return await fs.stat(path)
+  } catch (err: unknown) {
     Logger.error('[fileUtils] Failed to stat', err)
     return null
   }
 }
 
-async function getFileTimestampsWithIno(path) {
+export async function getFileTimestampsWithIno(path: string): Promise<FileTimestampsWithIno | false> {
   try {
-    var stat = await fs.stat(path, { bigint: true })
+    const stat = await fs.stat(path, { bigint: true })
     return {
       size: Number(stat.size),
       mtimeMs: Number(stat.mtimeMs),
@@ -57,92 +56,72 @@ async function getFileTimestampsWithIno(path) {
       birthtimeMs: Number(stat.birthtimeMs),
       ino: String(stat.ino)
     }
-  } catch (err) {
+  } catch (err: unknown) {
     Logger.error(`[fileUtils] Failed to getFileTimestampsWithIno for path "${path}"`, err)
     return false
   }
 }
-module.exports.getFileTimestampsWithIno = getFileTimestampsWithIno
 
 /**
  * Get file size
- *
- * @param {string} path
- * @returns {Promise<number>}
  */
-module.exports.getFileSize = async (path) => {
+export const getFileSize = async (path: string): Promise<number> => {
   return (await getFileStat(path))?.size || 0
 }
 
 /**
  * Get file mtimeMs
- *
- * @param {string} path
- * @returns {Promise<number>} epoch timestamp
  */
-module.exports.getFileMTimeMs = async (path) => {
+export const getFileMTimeMs = async (path: string): Promise<number> => {
   try {
     return (await getFileStat(path))?.mtimeMs || 0
-  } catch (err) {
+  } catch (err: unknown) {
     Logger.error(`[fileUtils] Failed to getFileMtimeMs`, err)
     return 0
   }
 }
 
-/**
- *
- * @param {string} filepath
- * @returns {boolean}
- */
-async function checkPathIsFile(filepath) {
+export async function checkPathIsFile(filepath: string): Promise<boolean> {
   try {
     const stat = await fs.stat(filepath)
     return stat.isFile()
-  } catch (err) {
+  } catch {
     return false
   }
 }
-module.exports.checkPathIsFile = checkPathIsFile
 
-function getIno(path) {
+export function getIno(path: string): Promise<string | null> {
   return fs
     .stat(path, { bigint: true })
     .then((data) => String(data.ino))
-    .catch((err) => {
+    .catch((err: unknown) => {
       Logger.warn(`[Utils] Failed to get ino for path "${path}"`, err)
       return null
     })
 }
-module.exports.getIno = getIno
 
 /**
  * Read contents of file
- * @param {string} path
- * @returns {string}
  */
-async function readTextFile(path) {
+export async function readTextFile(path: string): Promise<string> {
   try {
-    var data = await fs.readFile(path)
+    const data = await fs.readFile(path)
     return String(data)
-  } catch (error) {
+  } catch (error: unknown) {
     Logger.error(`[FileUtils] ReadTextFile error ${error}`)
     return ''
   }
 }
-module.exports.readTextFile = readTextFile
 
 /**
  * Check if file or directory should be ignored. Returns a string of the reason to ignore, or null if not ignored
- *
- * @param {string} path
- * @returns {string}
  */
-module.exports.shouldIgnoreFile = (path) => {
+export const shouldIgnoreFile = (path: string): string | null => {
   // Check if directory or file name starts with "."
   if (Path.basename(path).startsWith('.')) {
     return 'dotfile'
   }
-  if (path.split('/').find((p) => p.startsWith('.'))) {
+  if (path.split('/').some((p) => p.startsWith('.'))) {
     return 'dotpath'
   }
 
@@ -166,30 +145,18 @@ module.exports.shouldIgnoreFile = (path) => {
 }
 
 /**
- * @typedef FilePathItem
- * @property {string} name - file name e.g. "audiofile.m4b"
- * @property {string} path - fullpath excluding folder e.g. "Author/Book/audiofile.m4b"
- * @property {string} reldirpath - path excluding file name e.g. "Author/Book"
- * @property {string} fullpath - full path e.g. "/audiobooks/Author/Book/audiofile.m4b"
- * @property {string} extension - file extension e.g. ".m4b"
- * @property {number} deep - depth of file in directory (0 is file in folder root)
- */
-
-/**
  * Get array of files inside dir
- * @param {string} path
- * @param {string} [relPathToReplace]
- * @returns {FilePathItem[]}
  */
-module.exports.recurseFiles = async (path, relPathToReplace = null) => {
-  path = filePathToPOSIX(path)
-  if (!path.endsWith('/')) path = path + '/'
+export const recurseFiles = async (path: string, relPathToReplace: string | null = null): Promise<FilePathItem[]> => {
+  let normalizedPath = filePathToPOSIX(path)
+  if (!normalizedPath.endsWith('/')) normalizedPath = normalizedPath + '/'
 
+  let effectiveRelPath: string
   if (relPathToReplace) {
-    relPathToReplace = filePathToPOSIX(relPathToReplace)
-    if (!relPathToReplace.endsWith('/')) relPathToReplace += '/'
+    effectiveRelPath = filePathToPOSIX(relPathToReplace)
+    if (!effectiveRelPath.endsWith('/')) effectiveRelPath += '/'
   } else {
-    relPathToReplace = path
+    effectiveRelPath = normalizedPath
   }
 
   const options = {
@@ -202,15 +169,15 @@ module.exports.recurseFiles = async (path, relPathToReplace = null) => {
     realPath: true,
     normalizePath: false
   }
-  let list = await rra.list(path, options)
-  if (list.error) {
-    Logger.error('[fileUtils] Recurse files error', list.error)
+  const rawList = await rra.list(normalizedPath, options)
+  if (rawList.error) {
+    Logger.error('[fileUtils] Recurse files error', rawList.error)
     return []
   }
 
-  const directoriesToIgnore = []
+  const directoriesToIgnore: string[] = []
 
-  list = list
+  const list = rawList
     .filter((item) => {
       if (item.error) {
         Logger.error(`[fileUtils] Recurse files file "${item.fullname}" has error`, item.error)
@@ -219,7 +186,7 @@ module.exports.recurseFiles = async (path, relPathToReplace = null) => {
 
       item.fullname = filePathToPOSIX(item.fullname)
       item.path = filePathToPOSIX(item.path)
-      const relpath = item.fullname.replace(relPathToReplace, '')
+      const relpath = item.fullname.replace(effectiveRelPath, '')
       let reldirname = Path.dirname(relpath)
       if (reldirname === '.') reldirname = ''
       const dirname = Path.dirname(item.fullname)
@@ -232,7 +199,7 @@ module.exports.recurseFiles = async (path, relPathToReplace = null) => {
       }
 
       // Check for ignored extensions or directories
-      const shouldIgnore = this.shouldIgnoreFile(relpath)
+      const shouldIgnore = shouldIgnoreFile(relpath)
       if (shouldIgnore) {
         Logger.debug(`[fileUtils] Ignoring ${shouldIgnore} - "${relpath}"`)
         return false
@@ -249,11 +216,11 @@ module.exports.recurseFiles = async (path, relPathToReplace = null) => {
       return true
     })
     .map((item) => {
-      var isInRoot = item.path + '/' === relPathToReplace
+      const isInRoot = item.path + '/' === effectiveRelPath
       return {
         name: item.name,
-        path: item.fullname.replace(relPathToReplace, ''),
-        reldirpath: isInRoot ? '' : item.path.replace(relPathToReplace, ''),
+        path: item.fullname.replace(effectiveRelPath, ''),
+        reldirpath: isInRoot ? '' : item.path.replace(effectiveRelPath, ''),
         fullpath: item.fullname,
         extension: item.extension,
         deep: item.deep
@@ -266,12 +233,7 @@ module.exports.recurseFiles = async (path, relPathToReplace = null) => {
   return list
 }
 
-/**
- *
- * @param {import('../Watcher').PendingFileUpdate} fileUpdate
- * @returns {FilePathItem}
- */
-module.exports.getFilePathItemFromFileUpdate = (fileUpdate) => {
+export const getFilePathItemFromFileUpdate = (fileUpdate: PendingFileUpdate): FilePathItem => {
   let relPath = fileUpdate.relPath
   if (relPath.startsWith('/')) relPath = relPath.slice(1)
 
@@ -289,15 +251,15 @@ module.exports.getFilePathItemFromFileUpdate = (fileUpdate) => {
 /**
  * Download file from web to local file system
  * Uses SSRF filter to prevent internal URLs
- *
- * @param {string} url
- * @param {string} filepath path to download the file to
- * @param {Function} [contentTypeFilter] validate content type before writing
- * @returns {Promise}
  */
-module.exports.downloadFile = (url, filepath, contentTypeFilter = null) => {
-  return new Promise(async (resolve, reject) => {
+export const downloadFile = (
+  url: string,
+  filepath: string,
+  contentTypeFilter: ((contentType?: string) => boolean) | null = null
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
     Logger.debug(`[fileUtils] Downloading file to ${filepath}`)
+    const disableSsrf = (global as unknown as GlobalConfig).DisableSsrfRequestFilter?.(url)
     axios({
       url,
       method: 'GET',
@@ -306,24 +268,25 @@ module.exports.downloadFile = (url, filepath, contentTypeFilter = null) => {
         'User-Agent': 'audiobookshelf (+https://audiobookshelf.org)'
       },
       timeout: 30000,
-      httpAgent: global.DisableSsrfRequestFilter?.(url) ? null : ssrfFilter(url),
-      httpsAgent: global.DisableSsrfRequestFilter?.(url) ? null : ssrfFilter(url)
+      httpAgent: disableSsrf ? null : ssrfFilter(url),
+      httpsAgent: disableSsrf ? null : ssrfFilter(url)
     })
       .then((response) => {
         // Validate content type
-        if (contentTypeFilter && !contentTypeFilter?.(response.headers?.['content-type'])) {
+        if (contentTypeFilter && !contentTypeFilter(response.headers?.['content-type'] as string | undefined)) {
           return reject(new Error(`Invalid content type "${response.headers?.['content-type'] || ''}"`))
         }
 
-        const totalSize = parseInt(response.headers['content-length'], 10)
+        const totalSize = parseInt(String(response.headers['content-length']), 10)
         let downloadedSize = 0
 
         // Write to filepath
         const writer = fs.createWriteStream(filepath)
-        response.data.pipe(writer)
+        const responseStream = response.data as import('stream').Readable
+        responseStream.pipe(writer)
 
         let lastProgress = 0
-        response.data.on('data', (chunk) => {
+        responseStream.on('data', (chunk: Buffer) => {
           downloadedSize += chunk.length
           const progress = totalSize ? Math.round((downloadedSize / totalSize) * 100) : 0
           if (progress >= lastProgress + 5) {
@@ -332,10 +295,10 @@ module.exports.downloadFile = (url, filepath, contentTypeFilter = null) => {
           }
         })
 
-        writer.on('finish', resolve)
+        writer.on('finish', () => resolve())
         writer.on('error', reject)
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         Logger.error(`[fileUtils] Failed to download file "${filepath}"`, err)
         reject(err)
       })
@@ -345,52 +308,46 @@ module.exports.downloadFile = (url, filepath, contentTypeFilter = null) => {
 /**
  * Download image file from web to local file system
  * Response header must have content-type of image/ (excluding svg)
- *
- * @param {string} url
- * @param {string} filepath
- * @returns {Promise}
  */
-module.exports.downloadImageFile = (url, filepath) => {
-  const contentTypeFilter = (contentType) => {
-    return contentType?.startsWith('image/') && contentType !== 'image/svg+xml'
+export const downloadImageFile = (url: string, filepath: string): Promise<void> => {
+  const contentTypeFilter = (contentType?: string): boolean => {
+    return Boolean(contentType?.startsWith('image/') && contentType !== 'image/svg+xml')
   }
-  return this.downloadFile(url, filepath, contentTypeFilter)
+  return downloadFile(url, filepath, contentTypeFilter)
 }
 
-module.exports.sanitizeFilename = (filename, colonReplacement = ' - ') => {
+export const sanitizeFilename = (filename: string, colonReplacement = ' - '): string | false => {
   if (typeof filename !== 'string') {
     return false
   }
 
   // Normalize the string first to ensure consistent byte calculations
-  filename = filename.normalize('NFC')
+  let sanitized = filename.normalize('NFC')
 
   // Most file systems use number of bytes for max filename
-  //   to support most filesystems we will use max of 255 bytes in utf-16
-  //   Ref: https://doc.owncloud.com/server/next/admin_manual/troubleshooting/path_filename_length.html
-  //   Issue: https://github.com/advplyr/audiobookshelf/issues/1261
+  // to support most filesystems we will use max of 255 bytes in utf-16
   const MAX_FILENAME_BYTES = 255
 
   const replacement = ''
-  const illegalRe = /[\/\?<>\\:\*\|"]/g
+  const illegalRe = /[/?<>\\:*|"]/g
   const controlRe = /[\x00-\x1f\x80-\x9f]/g
   const reservedRe = /^\.+$/
   const windowsReservedRe = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i
-  const windowsTrailingRe = /[\. ]+$/
+  const windowsTrailingRe = /[. ]+$/
   const lineBreaks = /[\n\r]/g
 
-  let sanitized = filename
-    .replace(':', colonReplacement) // Replace first occurrence of a colon
+  sanitized = sanitized
+    .replace(':', colonReplacement)
     .replace(illegalRe, replacement)
     .replace(controlRe, replacement)
     .replace(reservedRe, replacement)
     .replace(lineBreaks, replacement)
     .replace(windowsReservedRe, replacement)
     .replace(windowsTrailingRe, replacement)
-    .replace(/\s+/g, ' ') // Replace consecutive spaces with a single space
+    .replace(/\s+/g, ' ')
 
   // Check if basename is too many bytes
-  const ext = Path.extname(sanitized) // separate out file extension
+  const ext = Path.extname(sanitized)
   const basename = Path.basename(sanitized, ext)
   const extByteLength = Buffer.byteLength(ext, 'utf16le')
 
@@ -402,7 +359,6 @@ module.exports.sanitizeFilename = (filename, colonReplacement = ' - ') => {
     let totalBytes = 0
     let trimmedBasename = ''
 
-    // Add chars until max bytes is reached
     for (const char of basename) {
       totalBytes += Buffer.byteLength(char, 'utf16le')
       if (totalBytes > MaxBytesForBasename) break
@@ -421,46 +377,40 @@ module.exports.sanitizeFilename = (filename, colonReplacement = ' - ') => {
 }
 
 // Returns null if extname is not in our defined list of audio extnames
-module.exports.getAudioMimeTypeFromExtname = (extname) => {
+export const getAudioMimeTypeFromExtname = (extname?: string | null): string | null => {
   if (!extname || !extname.length) return null
-  const formatUpper = extname.slice(1).toUpperCase()
+  const formatUpper = extname.slice(1).toUpperCase() as keyof typeof AudioMimeType
   if (AudioMimeType[formatUpper]) return AudioMimeType[formatUpper]
   return null
 }
 
-module.exports.removeFile = (path) => {
-  if (!path) return false
+export const removeFile = (path?: string | null): Promise<boolean> => {
+  if (!path) return Promise.resolve(false)
   return fs
     .remove(path)
     .then(() => true)
-    .catch((error) => {
+    .catch((error: unknown) => {
       Logger.error(`[fileUtils] Failed remove file "${path}"`, error)
       return false
     })
 }
 
-module.exports.encodeUriPath = (path) => {
+export const encodeUriPath = (path: string): string => {
   const uri = new URL('/', 'file://')
-  // we assign the path here to assure that URL control characters like # are
-  // actually interpreted as part of the URL path
   uri.pathname = path
   return uri.pathname
 }
 
 /**
  * Check if directory is writable.
- * This method is necessary because fs.access(directory, fs.constants.W_OK) does not work on Windows
- *
- * @param {string} directory
- * @returns {Promise<boolean>}
  */
-module.exports.isWritable = async (directory) => {
+export const isWritable = async (directory: string): Promise<boolean> => {
   try {
     const accessTestFile = Path.join(directory, 'accessTest')
     await fs.writeFile(accessTestFile, '')
     await fs.remove(accessTestFile)
     return true
-  } catch (err) {
+  } catch (err: unknown) {
     Logger.info(`[fileUtils] Directory is not writable "${directory}"`, err)
     return false
   }
@@ -468,26 +418,25 @@ module.exports.isWritable = async (directory) => {
 
 /**
  * Get Windows drives as array e.g. ["C:/", "F:/"]
- *
- * @returns {Promise<string[]>}
  */
-module.exports.getWindowsDrives = async () => {
-  if (!global.isWin) {
+export const getWindowsDrives = async (): Promise<string[]> => {
+  const isWin = (global as unknown as GlobalConfig).isWin
+  if (!isWin) {
     return []
   }
   return new Promise((resolve, reject) => {
-    exec('powershell -Command "(Get-PSDrive -PSProvider FileSystem).Name"', async (error, stdout, stderr) => {
+    exec('powershell -Command "(Get-PSDrive -PSProvider FileSystem).Name"', async (error, stdout) => {
       if (error) {
         reject(error)
         return
       }
-      let drives = stdout
+      const drives = stdout
         ?.split(/\r?\n/)
         .map((line) => line.trim())
-        .filter((line) => line)
-      const validDrives = []
+        .filter((line) => Boolean(line)) || []
+      const validDrives: string[] = []
       for (const drive of drives) {
-        let drivepath = drive + ':/'
+        const drivepath = drive + ':/'
         if (await fs.pathExists(drivepath)) {
           validDrives.push(drivepath)
         } else {
@@ -501,34 +450,29 @@ module.exports.getWindowsDrives = async () => {
 
 /**
  * Get array of directory paths in a directory
- *
- * @param {string} dirPath
- * @param {number} level
- * @returns {Promise<{ path:string, dirname:string, level:number }[]>}
  */
-module.exports.getDirectoriesInPath = async (dirPath, level) => {
+export const getDirectoriesInPath = async (dirPath: string, level: number): Promise<DirectoryInfo[]> => {
   try {
     const paths = await fs.readdir(dirPath)
-    let dirs = await Promise.all(
+    const dirs = await Promise.all(
       paths.map(async (dirname) => {
         const fullPath = Path.join(dirPath, dirname)
 
-        const lstat = await fs.lstat(fullPath).catch((error) => {
+        const lstat = await fs.lstat(fullPath).catch((error: unknown) => {
           Logger.debug(`Failed to lstat "${fullPath}"`, error)
           return null
         })
         if (!lstat?.isDirectory()) return null
 
         return {
-          path: this.filePathToPOSIX(fullPath),
+          path: filePathToPOSIX(fullPath),
           dirname,
           level
         }
       })
     )
-    dirs = dirs.filter((d) => d)
-    return dirs
-  } catch (error) {
+    return dirs.filter((d): d is DirectoryInfo => Boolean(d))
+  } catch (error: unknown) {
     Logger.error('Failed to readdir', dirPath, error)
     return []
   }
@@ -536,38 +480,27 @@ module.exports.getDirectoriesInPath = async (dirPath, level) => {
 
 /**
  * Copies a file from the source path to an existing destination path, preserving the destination's permissions.
- *
- * @param {string} srcPath - The path of the source file.
- * @param {string} destPath - The path of the existing destination file.
- * @returns {Promise<void>} A promise that resolves when the file has been successfully copied.
- * @throws {Error} If there is an error reading the source file or writing the destination file.
  */
-async function copyToExisting(srcPath, destPath) {
+export async function copyToExisting(srcPath: string, destPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Create a readable stream from the source file
     const readStream = fs.createReadStream(srcPath)
-
-    // Create a writable stream to the destination file
     const writeStream = fs.createWriteStream(destPath, { flags: 'w' })
 
-    // Pipe the read stream to the write stream
     readStream.pipe(writeStream)
 
-    // Handle the end of the stream
     writeStream.on('finish', () => {
       Logger.debug(`[copyToExisting] Successfully copied file from ${srcPath} to ${destPath}`)
       resolve()
     })
 
-    // Handle errors
-    readStream.on('error', (error) => {
+    readStream.on('error', (error: Error) => {
       Logger.error(`[copyToExisting] Error reading from source file ${srcPath}: ${error.message}`)
       readStream.close()
       writeStream.close()
       reject(error)
     })
 
-    writeStream.on('error', (error) => {
+    writeStream.on('error', (error: Error) => {
       Logger.error(`[copyToExisting] Error writing to destination file ${destPath}: ${error.message}`)
       readStream.close()
       writeStream.close()
@@ -575,4 +508,3 @@ async function copyToExisting(srcPath, destPath) {
     })
   })
 }
-module.exports.copyToExisting = copyToExisting

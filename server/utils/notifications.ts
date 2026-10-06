@@ -1,6 +1,9 @@
-const { version } = require('../../package.json')
+import packageJson from '../../package.json'
+import { NotificationDataStore } from '../types'
 
-module.exports.notificationData = {
+const version = packageJson.version
+
+export const notificationData: NotificationDataStore = {
   events: [
     {
       name: 'onPodcastEpisodeDownloaded',

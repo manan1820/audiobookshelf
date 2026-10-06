@@ -13,7 +13,11 @@ export function writeFile(file: string, data: string | NodeJS.ArrayBufferView, o
 export function writeFileSync(file: string, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions): void
 export function readFile(file: string, encoding?: BufferEncoding | { encoding: BufferEncoding; flag?: string }): Promise<string>
 export function readFileSync(file: string, encoding?: BufferEncoding | { encoding: BufferEncoding; flag?: string }): string
-export function stat(path: string): Promise<fs.Stats>
-export function statSync(path: string): fs.Stats
+export function stat(path: string, options?: { bigint?: boolean }): Promise<fs.Stats>
+export function statSync(path: string, options?: { bigint?: boolean }): fs.Stats
+export function lstat(path: string): Promise<fs.Stats>
+export function lstatSync(path: string): fs.Stats
 export function readdir(path: string): Promise<string[]>
 export function readdirSync(path: string): string[]
+export function createReadStream(path: fs.PathLike, options?: BufferEncoding | { flags?: string; encoding?: BufferEncoding; fd?: number; mode?: number; autoClose?: boolean; emitClose?: boolean; start?: number; end?: number; highWaterMark?: number }): fs.ReadStream
+export function createWriteStream(path: fs.PathLike, options?: BufferEncoding | { flags?: string; encoding?: BufferEncoding; fd?: number; mode?: number; autoClose?: boolean; emitClose?: boolean; start?: number; highWaterMark?: number }): fs.WriteStream

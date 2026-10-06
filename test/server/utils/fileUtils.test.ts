@@ -1,13 +1,16 @@
-const chai = require('chai')
-const expect = chai.expect
-const sinon = require('sinon')
-const fileUtils = require('../../../server/utils/fileUtils')
-const fs = require('fs')
-const Logger = require('../../../server/Logger')
+import { expect } from 'chai'
+import sinon from 'sinon'
+import * as fileUtils from '../../../server/utils/fileUtils'
+import fs from 'fs'
+import Logger from '../../../server/Logger'
+
+interface GlobalWithConfig {
+  isWin?: boolean
+}
 
 describe('fileUtils', () => {
   it('shouldIgnoreFile', () => {
-    global.isWin = process.platform === 'win32'
+    (global as unknown as GlobalWithConfig).isWin = process.platform === 'win32'
 
     const testCases = [
       { path: 'test.txt', expected: null },
@@ -40,19 +43,21 @@ describe('fileUtils', () => {
   })
 
   describe('recurseFiles', () => {
-    let readdirStub, realpathStub, statStub
+    let readdirStub: sinon.SinonStub
+    let realpathStub: sinon.SinonStub
+    let statStub: sinon.SinonStub
 
     beforeEach(() => {
-      global.isWin = process.platform === 'win32'
+      (global as unknown as GlobalWithConfig).isWin = process.platform === 'win32'
 
       // Mock file structure with normalized paths
-      const mockDirContents = new Map([
+      const mockDirContents = new Map<string, string[]>([
         ['/test', ['file1.mp3', 'subfolder', 'ignoreme', 'ignoremenot.mp3', 'temp.mp3.tmp']],
         ['/test/subfolder', ['file2.m4b']],
         ['/test/ignoreme', ['.ignore', 'ignored.mp3']]
       ])
 
-      const mockStats = new Map([
+      const mockStats = new Map<string, { isDirectory: () => boolean; size: number; mtimeMs: number; ino: string }>([
         ['/test/file1.mp3', { isDirectory: () => false, size: 1024, mtimeMs: Date.now(), ino: '1' }],
         ['/test/subfolder', { isDirectory: () => true, size: 0, mtimeMs: Date.now(), ino: '2' }],
         ['/test/subfolder/file2.m4b', { isDirectory: () => false, size: 1024, mtimeMs: Date.now(), ino: '3' }],
@@ -65,33 +70,32 @@ describe('fileUtils', () => {
 
       // Stub fs.readdir
       readdirStub = sinon.stub(fs, 'readdir')
-      readdirStub.callsFake((path, callback) => {
-        const contents = mockDirContents.get(path)
+      readdirStub.callsFake(((path: fs.PathLike, callback: (err: NodeJS.ErrnoException | null, files: string[]) => void) => {
+        const contents = mockDirContents.get(String(path))
         if (contents) {
           callback(null, contents)
         } else {
-          callback(new Error(`ENOENT: no such file or directory, scandir '${path}'`))
+          callback(new Error(`ENOENT: no such file or directory, scandir '${String(path)}'`) as NodeJS.ErrnoException, [])
         }
-      })
+      }) as typeof fs.readdir)
 
       // Stub fs.realpath
       realpathStub = sinon.stub(fs, 'realpath')
-      realpathStub.callsFake((path, callback) => {
-        // Return normalized path
-        callback(null, fileUtils.filePathToPOSIX(path).replace(/\/$/, ''))
-      })
+      realpathStub.callsFake(((path: fs.PathLike, callback: (err: NodeJS.ErrnoException | null, resolvedPath: string) => void) => {
+        callback(null, fileUtils.filePathToPOSIX(String(path)).replace(/\/$/, ''))
+      }) as typeof fs.realpath)
 
       // Stub fs.stat
       statStub = sinon.stub(fs, 'stat')
-      statStub.callsFake((path, callback) => {
-        const normalizedPath = fileUtils.filePathToPOSIX(path).replace(/\/$/, '')
+      statStub.callsFake(((path: fs.PathLike, callback: (err: NodeJS.ErrnoException | null, stats: unknown) => void) => {
+        const normalizedPath = fileUtils.filePathToPOSIX(String(path)).replace(/\/$/, '')
         const stats = mockStats.get(normalizedPath)
         if (stats) {
           callback(null, stats)
         } else {
-          callback(new Error(`ENOENT: no such file or directory, stat '${normalizedPath}'`))
+          callback(new Error(`ENOENT: no such file or directory, stat '${normalizedPath}'`) as NodeJS.ErrnoException, null)
         }
-      })
+      }) as typeof fs.stat)
 
       // Stub Logger
       sinon.stub(Logger, 'debug')

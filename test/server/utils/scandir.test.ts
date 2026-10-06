@@ -1,12 +1,20 @@
-const Path = require('path')
-const chai = require('chai')
-const expect = chai.expect
-const scanUtils = require('../../../server/utils/scandir')
+import Path from 'path'
+import { expect } from 'chai'
+import * as scanUtils from '../../../server/utils/scandir'
+import { FilePathItem } from '../../../server/types'
 
-describe('scanUtils', async () => {
-  it('should properly group files into potential book library items', async () => {
-    global.isWin = process.platform === 'win32'
-    global.ServerSettings = {
+interface GlobalWithConfig {
+  isWin?: boolean
+  ServerSettings?: {
+    scannerParseSubtitle?: boolean
+  }
+}
+
+describe('scanUtils', () => {
+  it('should properly group files into potential book library items', () => {
+    const globalObj = global as unknown as GlobalWithConfig
+    globalObj.isWin = process.platform === 'win32'
+    globalObj.ServerSettings = {
       scannerParseSubtitle: true
     }
 
@@ -28,12 +36,14 @@ describe('scanUtils', async () => {
     ]
 
     // Create fileItems to match the format of fileUtils.recurseFiles
-    const fileItems = []
+    const fileItems: FilePathItem[] = []
     for (const filePath of filePaths) {
       const dirname = Path.dirname(filePath)
       fileItems.push({
         name: Path.basename(filePath),
+        path: filePath,
         reldirpath: dirname === '.' ? '' : dirname,
+        fullpath: '/' + filePath,
         extension: Path.extname(filePath),
         deep: filePath.split('/').length - 1
       })
