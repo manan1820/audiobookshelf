@@ -6,6 +6,7 @@ export function remove(dir: string): Promise<void>
 export function removeSync(dir: string): void
 export function emptyDir(dir: string): Promise<void>
 export function ensureDir(dir: string): Promise<void>
+export function mkdir(dir: fs.PathLike, options?: fs.MakeDirectoryOptions): Promise<string | undefined>
 export function mkdirs(dir: string): Promise<void>
 export function move(src: string, dest: string, options?: { overwrite?: boolean }): Promise<void>
 export function copy(src: string, dest: string, options?: { overwrite?: boolean }): Promise<void>

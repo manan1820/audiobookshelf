@@ -598,7 +598,7 @@ export interface PodcastEpisodeDownloadLike {
     media: {
       title?: string | null
       author?: string | null
-      genres: string[]
+      genres?: string[] | null
       language?: string | null
       itunesId?: string | null
       podcastType?: string | null
@@ -744,6 +744,8 @@ declare global {
   var ConfigPath: string
   var configPath: string | undefined
   var appRoot: string
+  var MaxFailedEpisodeChecks: number | undefined
+  var PodcastDownloadTimeout: number | undefined
   var ServerSettings: {
     sortingIgnorePrefix?: boolean
     allowIframe?: boolean

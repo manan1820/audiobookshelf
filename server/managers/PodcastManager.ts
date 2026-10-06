@@ -1,50 +1,70 @@
-const Path = require('path')
-const Logger = require('../Logger')
-const SocketAuthority = require('../SocketAuthority')
-const Database = require('../Database')
-const Watcher = require('../Watcher')
+import Path from 'path'
+import Logger from '../Logger'
+import SocketAuthority from '../SocketAuthority'
+import Database from '../Database'
+import Watcher from '../Watcher'
 
-const fs = require('../libs/fsExtra')
+import fs from '../libs/fsExtra'
 
-const { getPodcastFeed } = require('../utils/podcastUtils')
-const { removeFile, downloadFile, sanitizeFilename, filePathToPOSIX, getFileTimestampsWithIno } = require('../utils/fileUtils')
-const { levenshteinDistance } = require('../utils/index')
-const opmlParser = require('../utils/parsers/parseOPML')
-const opmlGenerator = require('../utils/generators/opmlGenerator')
-const prober = require('../utils/prober')
-const ffmpegHelpers = require('../utils/ffmpegHelpers')
+import { getPodcastFeed } from '../utils/podcastUtils'
+import { removeFile, downloadFile, sanitizeFilename, filePathToPOSIX, getFileTimestampsWithIno } from '../utils/fileUtils'
+import { levenshteinDistance } from '../utils/index'
+import * as opmlParser from '../utils/parsers/parseOPML'
+import * as opmlGenerator from '../utils/generators/opmlGenerator'
+import prober from '../utils/prober'
+import * as ffmpegHelpers from '../utils/ffmpegHelpers'
 
-const TaskManager = require('./TaskManager')
-const CoverManager = require('../managers/CoverManager')
-const NotificationManager = require('../managers/NotificationManager')
+import TaskManager from './TaskManager'
+import CoverManager from '../managers/CoverManager'
+import NotificationManager from '../managers/NotificationManager'
 
-const LibraryFile = require('../objects/files/LibraryFile')
-const PodcastEpisodeDownload = require('../objects/PodcastEpisodeDownload')
-const AudioFile = require('../objects/files/AudioFile')
+import LibraryFile from '../objects/files/LibraryFile'
+import PodcastEpisodeDownload from '../objects/PodcastEpisodeDownload'
+import AudioFile from '../objects/files/AudioFile'
+
+import type { RssPodcast, RssPodcastEpisode, AudioFileObject, ChapterObject, LibraryFileObject, PodcastEpisodeDownloadLike } from '../types'
+import type LibraryItem from '../models/LibraryItem'
+import type Podcast from '../models/Podcast'
+import type PodcastEpisode from '../models/PodcastEpisode'
+import type LibraryFolder from '../models/LibraryFolder'
+import type { ParsedOpmlFeed } from '../utils/parsers/parseOPML'
+
+interface ICronManager {
+  checkUpdatePodcastCron(libraryItem: LibraryItem): void
+  [key: string]: unknown
+}
+
+interface EpisodeMatch {
+  episode: RssPodcastEpisode
+  levenshtein: number
+}
 
 class PodcastManager {
+  downloadQueue: PodcastEpisodeDownload[]
+  currentDownload: PodcastEpisodeDownload | null
+  failedCheckMap: Record<string, number>
+  MaxFailedEpisodeChecks: number | undefined
+
   constructor() {
-    /** @type {PodcastEpisodeDownload[]} */
     this.downloadQueue = []
-    /** @type {PodcastEpisodeDownload} */
     this.currentDownload = null
 
     this.failedCheckMap = {}
     this.MaxFailedEpisodeChecks = global.MaxFailedEpisodeChecks
   }
 
-  getEpisodeDownloadsInQueue(libraryItemId) {
+  getEpisodeDownloadsInQueue(libraryItemId: string): PodcastEpisodeDownload[] {
     return this.downloadQueue.filter((d) => d.libraryItemId === libraryItemId)
   }
 
-  clearDownloadQueue(libraryItemId = null) {
+  clearDownloadQueue(libraryItemId: string | null = null): void {
     if (!this.downloadQueue.length) return
 
     if (!libraryItemId) {
       Logger.info(`[PodcastManager] Clearing all downloads in queue (${this.downloadQueue.length})`)
       this.downloadQueue = []
     } else {
-      var itemDownloads = this.getEpisodeDownloadsInQueue(libraryItemId)
+      const itemDownloads = this.getEpisodeDownloadsInQueue(libraryItemId)
       Logger.info(`[PodcastManager] Clearing downloads in queue for item "${libraryItemId}" (${itemDownloads.length})`)
       this.downloadQueue = this.downloadQueue.filter((d) => d.libraryItemId !== libraryItemId)
       SocketAuthority.emitter('episode_download_queue_cleared', libraryItemId)
@@ -52,25 +72,22 @@ class PodcastManager {
   }
 
   /**
-   *
-   * @param {import('../models/LibraryItem')} libraryItem
-   * @param {import('../utils/podcastUtils').RssPodcastEpisode[]} episodesToDownload
+   * @param {LibraryItem} libraryItem
+   * @param {RssPodcastEpisode[]} episodesToDownload
    * @param {boolean} isAutoDownload - If this download was triggered by auto download
    */
-  async downloadPodcastEpisodes(libraryItem, episodesToDownload, isAutoDownload) {
+  async downloadPodcastEpisodes(libraryItem: LibraryItem, episodesToDownload: RssPodcastEpisode[], isAutoDownload: boolean): Promise<void> {
     for (const ep of episodesToDownload) {
       const newPeDl = new PodcastEpisodeDownload()
       newPeDl.setData(ep, libraryItem, isAutoDownload, libraryItem.libraryId)
-      this.startPodcastEpisodeDownload(newPeDl)
+      void this.startPodcastEpisodeDownload(newPeDl)
     }
   }
 
   /**
-   *
    * @param {PodcastEpisodeDownload} podcastEpisodeDownload
-   * @returns
    */
-  async startPodcastEpisodeDownload(podcastEpisodeDownload) {
+  async startPodcastEpisodeDownload(podcastEpisodeDownload: PodcastEpisodeDownload): Promise<void> {
     if (this.currentDownload) {
       // Prevent downloading episodes from the same URL for the same library item.
       // Allow downloading for different library items in case of the same podcast existing in multiple libraries (e.g. different folders)
@@ -97,7 +114,7 @@ class PodcastManager {
     const taskDescriptionString = {
       text: `Downloading episode "${podcastEpisodeDownload.episodeTitle}".`,
       key: 'MessageTaskDownloadingEpisodeDescription',
-      subs: [podcastEpisodeDownload.episodeTitle]
+      subs: [podcastEpisodeDownload.episodeTitle || '']
     }
     const task = TaskManager.createAndAddTask('download-podcast-episode', taskTitleString, taskDescriptionString, false, taskData)
 
@@ -122,9 +139,12 @@ class PodcastManager {
     }
 
     // Download episode and tag it
-    const ffmpegDownloadResponse = await ffmpegHelpers.downloadPodcastEpisode(this.currentDownload).catch((error) => {
-      Logger.error(`[PodcastManager] Podcast Episode download failed`, error)
-    })
+    const ffmpegDownloadResponse = await ffmpegHelpers
+      .downloadPodcastEpisode(this.currentDownload as unknown as PodcastEpisodeDownloadLike)
+      .catch((error: unknown) => {
+        Logger.error(`[PodcastManager] Podcast Episode download failed`, error)
+        return null
+      })
     let success = !!ffmpegDownloadResponse?.success
 
     if (success) {
@@ -143,9 +163,9 @@ class PodcastManager {
     if (!success && !ffmpegDownloadResponse?.isRequestError) {
       Logger.info(`[PodcastManager] Retrying episode download without tagging`)
       // Download episode only
-      success = await downloadFile(this.currentDownload.url, this.currentDownload.targetPath)
+      success = await downloadFile(this.currentDownload.url || '', this.currentDownload.targetPath)
         .then(() => true)
-        .catch((error) => {
+        .catch((error: unknown) => {
           Logger.error(`[PodcastManager] Podcast Episode download failed`, error)
           return false
         })
@@ -181,7 +201,10 @@ class PodcastManager {
     Watcher.ignoreFilePathsDownloading.delete(this.currentDownload.targetPath)
     this.currentDownload = null
     if (this.downloadQueue.length) {
-      this.startPodcastEpisodeDownload(this.downloadQueue.shift())
+      const nextDownload = this.downloadQueue.shift()
+      if (nextDownload) {
+        void this.startPodcastEpisodeDownload(nextDownload)
+      }
     }
   }
 
@@ -189,9 +212,11 @@ class PodcastManager {
    * Scans the downloaded audio file, create the podcast episode, remove oldest episode if necessary
    * @returns {Promise<boolean>} - Returns true if added
    */
-  async scanAddPodcastEpisodeAudioFile() {
+  async scanAddPodcastEpisodeAudioFile(): Promise<boolean> {
+    if (!this.currentDownload) return false
+
     const libraryFile = new LibraryFile()
-    await libraryFile.setDataFromPath(this.currentDownload.targetPath, this.currentDownload.targetRelPath)
+    await libraryFile.setDataFromPath(this.currentDownload.targetPath, this.currentDownload.targetRelPath || '')
 
     const audioFile = await this.probeAudioFile(libraryFile)
     if (!audioFile) {
@@ -204,26 +229,32 @@ class PodcastManager {
       return false
     }
 
-    const podcastEpisode = await Database.podcastEpisodeModel.createFromRssPodcastEpisode(this.currentDownload.rssPodcastEpisode, libraryItem.media.id, audioFile)
+    const podcast = libraryItem.media as Podcast
+    const podcastEpisode = await Database.podcastEpisodeModel.createFromRssPodcastEpisode(
+      this.currentDownload.rssPodcastEpisode,
+      podcast.id,
+      audioFile as unknown as { toJSON(): AudioFileObject; chapters?: ChapterObject[] }
+    )
 
-    libraryItem.libraryFiles.push(libraryFile.toJSON())
+    libraryItem.libraryFiles.push(libraryFile.toJSON() as unknown as LibraryFileObject)
     // Re-calculating library item size because this wasnt being updated properly for podcasts in v2.20.0 and below
     let libraryItemSize = 0
-    libraryItem.libraryFiles.forEach((lf) => {
-      if (lf.metadata.size && !isNaN(lf.metadata.size)) {
+    libraryItem.libraryFiles.forEach((lf: { metadata?: { size?: number | string | null } }) => {
+      if (lf.metadata?.size && !isNaN(Number(lf.metadata.size))) {
         libraryItemSize += Number(lf.metadata.size)
       }
     })
     libraryItem.size = libraryItemSize
     libraryItem.changed('libraryFiles', true)
 
-    libraryItem.media.podcastEpisodes.push(podcastEpisode)
+    if (!podcast.podcastEpisodes) podcast.podcastEpisodes = []
+    podcast.podcastEpisodes.push(podcastEpisode)
 
     if (this.currentDownload.isAutoDownload) {
       // Check setting maxEpisodesToKeep and remove episode if necessary
-      const numEpisodesWithPubDate = libraryItem.media.podcastEpisodes.filter((ep) => !!ep.publishedAt).length
-      if (libraryItem.media.maxEpisodesToKeep && numEpisodesWithPubDate > libraryItem.media.maxEpisodesToKeep) {
-        Logger.info(`[PodcastManager] # of episodes (${numEpisodesWithPubDate}) exceeds max episodes to keep (${libraryItem.media.maxEpisodesToKeep})`)
+      const numEpisodesWithPubDate = podcast.podcastEpisodes.filter((ep) => !!ep.publishedAt).length
+      if (podcast.maxEpisodesToKeep && numEpisodesWithPubDate > podcast.maxEpisodesToKeep) {
+        Logger.info(`[PodcastManager] # of episodes (${numEpisodesWithPubDate}) exceeds max episodes to keep (${podcast.maxEpisodesToKeep})`)
         const episodeToRemove = await this.getRemoveOldestEpisode(libraryItem, podcastEpisode.id)
         if (episodeToRemove) {
           // Remove episode from playlists
@@ -235,23 +266,23 @@ class PodcastManager {
             }
           })
           await episodeToRemove.destroy()
-          libraryItem.media.podcastEpisodes = libraryItem.media.podcastEpisodes.filter((ep) => ep.id !== episodeToRemove.id)
+          podcast.podcastEpisodes = podcast.podcastEpisodes.filter((ep) => ep.id !== episodeToRemove.id)
 
           // Remove library file
-          libraryItem.libraryFiles = libraryItem.libraryFiles.filter((lf) => lf.ino !== episodeToRemove.audioFile.ino)
+          libraryItem.libraryFiles = libraryItem.libraryFiles.filter((lf: { ino?: string | null }) => lf.ino !== episodeToRemove.audioFile?.ino)
         }
       }
     }
 
     await libraryItem.save()
 
-    if (libraryItem.media.numEpisodes !== libraryItem.media.podcastEpisodes.length) {
-      libraryItem.media.numEpisodes = libraryItem.media.podcastEpisodes.length
-      await libraryItem.media.save()
+    if (podcast.numEpisodes !== podcast.podcastEpisodes.length) {
+      podcast.numEpisodes = podcast.podcastEpisodes.length
+      await podcast.save()
     }
 
     SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
-    const podcastEpisodeExpanded = podcastEpisode.toOldJSONExpanded(libraryItem.id)
+    const podcastEpisodeExpanded = podcastEpisode.toOldJSONExpanded(libraryItem.id) as unknown as Record<string, unknown>
     podcastEpisodeExpanded.libraryItem = libraryItem.toOldJSONExpanded()
     SocketAuthority.emitter('episode_added', podcastEpisodeExpanded)
 
@@ -266,23 +297,23 @@ class PodcastManager {
   /**
    * Find oldest episode publishedAt and delete the audio file
    *
-   * @param {import('../models/LibraryItem').LibraryItemExpanded} libraryItem
+   * @param {LibraryItem} libraryItem
    * @param {string} episodeIdJustDownloaded
-   * @returns {Promise<import('../models/PodcastEpisode')|null>} - Returns the episode to remove
+   * @returns {Promise<PodcastEpisode|null>} - Returns the episode to remove
    */
-  async getRemoveOldestEpisode(libraryItem, episodeIdJustDownloaded) {
+  async getRemoveOldestEpisode(libraryItem: LibraryItem, episodeIdJustDownloaded: string): Promise<PodcastEpisode | null> {
     let smallestPublishedAt = 0
-    /** @type {import('../models/PodcastEpisode')} */
-    let oldestEpisode = null
+    let oldestEpisode: PodcastEpisode | null = null
 
-    /** @type {import('../models/PodcastEpisode')[]} */
-    const podcastEpisodes = libraryItem.media.podcastEpisodes
+    const podcast = libraryItem.media as Podcast
+    const podcastEpisodes = podcast.podcastEpisodes || []
 
     for (const ep of podcastEpisodes) {
       if (ep.id === episodeIdJustDownloaded || !ep.publishedAt) continue
 
-      if (!smallestPublishedAt || ep.publishedAt < smallestPublishedAt) {
-        smallestPublishedAt = ep.publishedAt
+      const pubTime = typeof ep.publishedAt === 'number' ? ep.publishedAt : new Date(ep.publishedAt).getTime()
+      if (!smallestPublishedAt || pubTime < smallestPublishedAt) {
+        smallestPublishedAt = pubTime
         oldestEpisode = ep
       }
     }
@@ -300,14 +331,14 @@ class PodcastManager {
   }
 
   /**
-   *
    * @param {LibraryFile} libraryFile
    * @returns {Promise<AudioFile|null>}
    */
-  async probeAudioFile(libraryFile) {
-    const path = libraryFile.metadata.path
+  async probeAudioFile(libraryFile: LibraryFile): Promise<AudioFile | null> {
+    const path = libraryFile.metadata?.path
+    if (!path) return null
     const mediaProbeData = await prober.probe(path)
-    if (mediaProbeData.error) {
+    if ('error' in mediaProbeData) {
       Logger.error(`[PodcastManager] Podcast Episode downloaded but failed to probe "${path}"`, mediaProbeData.error)
       return null
     }
@@ -318,22 +349,22 @@ class PodcastManager {
   }
 
   /**
-   *
-   * @param {import('../models/LibraryItem')} libraryItem
+   * @param {LibraryItem} libraryItem
    * @returns {Promise<boolean>} - Returns false if auto download episodes was disabled (disabled if reaches max failed checks)
    */
-  async runEpisodeCheck(libraryItem) {
-    const lastEpisodeCheck = libraryItem.media.lastEpisodeCheck?.valueOf() || 0
-    const latestEpisodePublishedAt = libraryItem.media.getLatestEpisodePublishedAt()
+  async runEpisodeCheck(libraryItem: LibraryItem): Promise<boolean> {
+    const podcast = libraryItem.media as Podcast
+    const lastEpisodeCheck = podcast.lastEpisodeCheck?.valueOf() || 0
+    const latestEpisodePublishedAt = podcast.getLatestEpisodePublishedAt()
 
-    Logger.info(`[PodcastManager] runEpisodeCheck: "${libraryItem.media.title}" | Last check: ${new Date(lastEpisodeCheck)} | ${latestEpisodePublishedAt ? `Latest episode pubDate: ${new Date(latestEpisodePublishedAt)}` : 'No latest episode'}`)
+    Logger.info(`[PodcastManager] runEpisodeCheck: "${podcast.title}" | Last check: ${new Date(lastEpisodeCheck)} | ${latestEpisodePublishedAt ? `Latest episode pubDate: ${new Date(latestEpisodePublishedAt)}` : 'No latest episode'}`)
 
     // Use latest episode pubDate if exists OR fallback to using lastEpisodeCheck
     //    lastEpisodeCheck will be the current time when adding a new podcast
     const dateToCheckForEpisodesAfter = latestEpisodePublishedAt || lastEpisodeCheck
-    Logger.debug(`[PodcastManager] runEpisodeCheck: "${libraryItem.media.title}" checking for episodes after ${new Date(dateToCheckForEpisodesAfter)}`)
+    Logger.debug(`[PodcastManager] runEpisodeCheck: "${podcast.title}" checking for episodes after ${new Date(dateToCheckForEpisodesAfter)}`)
 
-    const newEpisodes = await this.checkPodcastForNewEpisodes(libraryItem, dateToCheckForEpisodesAfter, libraryItem.media.maxNewEpisodesToDownload)
+    const newEpisodes = await this.checkPodcastForNewEpisodes(libraryItem, dateToCheckForEpisodesAfter, podcast.maxNewEpisodesToDownload || 3)
     Logger.debug(`[PodcastManager] runEpisodeCheck: ${newEpisodes?.length || 'N/A'} episodes found`)
 
     if (!newEpisodes) {
@@ -341,65 +372,66 @@ class PodcastManager {
       // Allow up to MaxFailedEpisodeChecks failed attempts before disabling auto download
       if (!this.failedCheckMap[libraryItem.id]) this.failedCheckMap[libraryItem.id] = 0
       this.failedCheckMap[libraryItem.id]++
-      if (this.MaxFailedEpisodeChecks !== 0 && this.failedCheckMap[libraryItem.id] >= this.MaxFailedEpisodeChecks) {
-        Logger.error(`[PodcastManager] runEpisodeCheck ${this.failedCheckMap[libraryItem.id]} failed attempts at checking episodes for "${libraryItem.media.title}" - disabling auto download`)
-        void NotificationManager.onRSSFeedDisabled(libraryItem.media.feedURL, this.failedCheckMap[libraryItem.id], libraryItem.media.title)
-        libraryItem.media.autoDownloadEpisodes = false
+      if (this.MaxFailedEpisodeChecks !== 0 && this.failedCheckMap[libraryItem.id] >= (this.MaxFailedEpisodeChecks || 0)) {
+        Logger.error(`[PodcastManager] runEpisodeCheck ${this.failedCheckMap[libraryItem.id]} failed attempts at checking episodes for "${podcast.title}" - disabling auto download`)
+        void NotificationManager.onRSSFeedDisabled(podcast.feedURL || '', this.failedCheckMap[libraryItem.id], podcast.title || '')
+        podcast.autoDownloadEpisodes = false
         delete this.failedCheckMap[libraryItem.id]
       } else {
-        Logger.warn(`[PodcastManager] runEpisodeCheck ${this.failedCheckMap[libraryItem.id]} failed attempts at checking episodes for "${libraryItem.media.title}"`)
-        void NotificationManager.onRSSFeedFailed(libraryItem.media.feedURL, this.failedCheckMap[libraryItem.id], libraryItem.media.title)
+        Logger.warn(`[PodcastManager] runEpisodeCheck ${this.failedCheckMap[libraryItem.id]} failed attempts at checking episodes for "${podcast.title}"`)
+        void NotificationManager.onRSSFeedFailed(podcast.feedURL || '', this.failedCheckMap[libraryItem.id], podcast.title || '')
       }
     } else if (newEpisodes.length) {
       delete this.failedCheckMap[libraryItem.id]
-      Logger.info(`[PodcastManager] Found ${newEpisodes.length} new episodes for podcast "${libraryItem.media.title}" - starting download`)
-      this.downloadPodcastEpisodes(libraryItem, newEpisodes, true)
+      Logger.info(`[PodcastManager] Found ${newEpisodes.length} new episodes for podcast "${podcast.title}" - starting download`)
+      void this.downloadPodcastEpisodes(libraryItem, newEpisodes, true)
     } else {
       delete this.failedCheckMap[libraryItem.id]
-      Logger.debug(`[PodcastManager] No new episodes for "${libraryItem.media.title}"`)
+      Logger.debug(`[PodcastManager] No new episodes for "${podcast.title}"`)
     }
 
-    libraryItem.media.lastEpisodeCheck = new Date()
-    await libraryItem.media.save()
+    podcast.lastEpisodeCheck = new Date()
+    await podcast.save()
 
     libraryItem.changed('updatedAt', true)
     await libraryItem.save()
 
     SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
 
-    return libraryItem.media.autoDownloadEpisodes
+    return podcast.autoDownloadEpisodes
   }
 
   /**
-   *
-   * @param {import('../models/LibraryItem')} podcastLibraryItem
+   * @param {LibraryItem} podcastLibraryItem
    * @param {number} dateToCheckForEpisodesAfter - Unix timestamp
-   * @param {number} maxNewEpisodes
-   * @returns {Promise<import('../utils/podcastUtils').RssPodcastEpisode[]|null>}
+   * @param {number} [maxNewEpisodes]
+   * @returns {Promise<RssPodcastEpisode[]|null>}
    */
-  async checkPodcastForNewEpisodes(podcastLibraryItem, dateToCheckForEpisodesAfter, maxNewEpisodes = 3) {
-    if (!podcastLibraryItem.media.feedURL) {
-      Logger.error(`[PodcastManager] checkPodcastForNewEpisodes no feed url for ${podcastLibraryItem.media.title} (ID: ${podcastLibraryItem.id})`)
+  async checkPodcastForNewEpisodes(podcastLibraryItem: LibraryItem, dateToCheckForEpisodesAfter: number, maxNewEpisodes = 3): Promise<RssPodcastEpisode[] | null> {
+    const podcast = podcastLibraryItem.media as Podcast
+    if (!podcast.feedURL) {
+      Logger.error(`[PodcastManager] checkPodcastForNewEpisodes no feed url for ${podcast.title} (ID: ${podcastLibraryItem.id})`)
       return null
     }
+    const timeoutMs = (global.PodcastDownloadTimeout || 30000) + 1000
     const feed = await Promise.race([
-      getPodcastFeed(podcastLibraryItem.media.feedURL),
-      new Promise((_, reject) =>
+      getPodcastFeed(podcast.feedURL),
+      new Promise<null>((_, reject) =>
         // The added second is to make sure that axios can fail first and only falls back later
-        setTimeout(() => reject(new Error('Timeout. getPodcastFeed seemed to timeout but not triggering the timeout.')), global.PodcastDownloadTimeout + 1000)
+        setTimeout(() => reject(new Error('Timeout. getPodcastFeed seemed to timeout but not triggering the timeout.')), timeoutMs)
       )
-    ]).catch((error) => {
-      Logger.error(`[PodcastManager] checkPodcastForNewEpisodes failed to fetch feed for ${podcastLibraryItem.media.title} (ID: ${podcastLibraryItem.id}):`, error)
+    ]).catch((error: unknown) => {
+      Logger.error(`[PodcastManager] checkPodcastForNewEpisodes failed to fetch feed for ${podcast.title} (ID: ${podcastLibraryItem.id}):`, error)
       return null
     })
 
     if (!feed?.episodes) {
-      Logger.error(`[PodcastManager] checkPodcastForNewEpisodes invalid feed payload for ${podcastLibraryItem.media.title} (ID: ${podcastLibraryItem.id})`, feed)
+      Logger.error(`[PodcastManager] checkPodcastForNewEpisodes invalid feed payload for ${podcast.title} (ID: ${podcastLibraryItem.id})`, feed)
       return null
     }
 
     // Filter new and not already has
-    let newEpisodes = feed.episodes.filter((ep) => ep.publishedAt > dateToCheckForEpisodesAfter && !podcastLibraryItem.media.checkHasEpisodeByFeedEpisode(ep))
+    let newEpisodes = feed.episodes.filter((ep) => ep.publishedAt && ep.publishedAt > dateToCheckForEpisodesAfter && !podcast.checkHasEpisodeByFeedEpisode(ep))
 
     if (maxNewEpisodes > 0) {
       newEpisodes = newEpisodes.slice(0, maxNewEpisodes)
@@ -409,26 +441,26 @@ class PodcastManager {
   }
 
   /**
-   *
-   * @param {import('../models/LibraryItem')} libraryItem
-   * @param {*} maxEpisodesToDownload
-   * @returns {Promise<import('../utils/podcastUtils').RssPodcastEpisode[]>}
+   * @param {LibraryItem} libraryItem
+   * @param {number} maxEpisodesToDownload
+   * @returns {Promise<RssPodcastEpisode[]>}
    */
-  async checkAndDownloadNewEpisodes(libraryItem, maxEpisodesToDownload) {
-    const lastEpisodeCheck = libraryItem.media.lastEpisodeCheck?.valueOf() || 0
-    const lastEpisodeCheckDate = lastEpisodeCheck > 0 ? libraryItem.media.lastEpisodeCheck : 'Never'
-    Logger.info(`[PodcastManager] checkAndDownloadNewEpisodes for "${libraryItem.media.title}" - Last episode check: ${lastEpisodeCheckDate}`)
+  async checkAndDownloadNewEpisodes(libraryItem: LibraryItem, maxEpisodesToDownload: number): Promise<RssPodcastEpisode[]> {
+    const podcast = libraryItem.media as Podcast
+    const lastEpisodeCheck = podcast.lastEpisodeCheck?.valueOf() || 0
+    const lastEpisodeCheckDate = lastEpisodeCheck > 0 ? podcast.lastEpisodeCheck : 'Never'
+    Logger.info(`[PodcastManager] checkAndDownloadNewEpisodes for "${podcast.title}" - Last episode check: ${lastEpisodeCheckDate}`)
 
     const newEpisodes = await this.checkPodcastForNewEpisodes(libraryItem, lastEpisodeCheck, maxEpisodesToDownload)
     if (newEpisodes?.length) {
-      Logger.info(`[PodcastManager] Found ${newEpisodes.length} new episodes for podcast "${libraryItem.media.title}" - starting download`)
-      this.downloadPodcastEpisodes(libraryItem, newEpisodes, false)
+      Logger.info(`[PodcastManager] Found ${newEpisodes.length} new episodes for podcast "${podcast.title}" - starting download`)
+      void this.downloadPodcastEpisodes(libraryItem, newEpisodes, false)
     } else {
-      Logger.info(`[PodcastManager] No new episodes found for podcast "${libraryItem.media.title}"`)
+      Logger.info(`[PodcastManager] No new episodes found for podcast "${podcast.title}"`)
     }
 
-    libraryItem.media.lastEpisodeCheck = new Date()
-    await libraryItem.media.save()
+    podcast.lastEpisodeCheck = new Date()
+    await podcast.save()
 
     libraryItem.changed('updatedAt', true)
     await libraryItem.save()
@@ -438,15 +470,13 @@ class PodcastManager {
     return newEpisodes || []
   }
 
-  async findEpisode(rssFeedUrl, searchTitle) {
-    const feed = await getPodcastFeed(rssFeedUrl).catch(() => {
-      return null
-    })
+  async findEpisode(rssFeedUrl: string, searchTitle: string): Promise<EpisodeMatch[] | null> {
+    const feed = await getPodcastFeed(rssFeedUrl).catch(() => null)
     if (!feed || !feed.episodes) {
       return null
     }
 
-    const matches = []
+    const matches: EpisodeMatch[] = []
     feed.episodes.forEach((ep) => {
       if (!ep.title) return
 
@@ -469,11 +499,11 @@ class PodcastManager {
     return matches.sort((a, b) => a.levenshtein - b.levenshtein)
   }
 
-  getParsedOPMLFileFeeds(opmlText) {
+  getParsedOPMLFileFeeds(opmlText: string): ParsedOpmlFeed[] {
     return opmlParser.parse(opmlText)
   }
 
-  async getOPMLFeeds(opmlText) {
+  async getOPMLFeeds(opmlText: string): Promise<{ feeds: RssPodcast[] } | { error: string }> {
     const extractedFeeds = opmlParser.parse(opmlText)
     if (!extractedFeeds?.length) {
       Logger.error('[PodcastManager] getOPMLFeeds: No RSS feeds found in OPML')
@@ -482,9 +512,9 @@ class PodcastManager {
       }
     }
 
-    const rssFeedData = []
+    const rssFeedData: RssPodcast[] = []
 
-    for (let feed of extractedFeeds) {
+    for (const feed of extractedFeeds) {
       const feedData = await getPodcastFeed(feed.feedUrl, true)
       if (feedData) {
         feedData.metadata.feedUrl = feed.feedUrl
@@ -499,14 +529,17 @@ class PodcastManager {
 
   /**
    * OPML file string for podcasts in a library
-   * @param {import('../models/Podcast')[]} podcasts
+   * @param {Podcast[]} podcasts
    * @returns {string} XML string
    */
-  generateOPMLFileText(podcasts) {
+  generateOPMLFileText(podcasts: Podcast[]): string {
     return opmlGenerator.generate(podcasts)
   }
 
-  getDownloadQueueDetails(libraryId = null) {
+  getDownloadQueueDetails(libraryId: string | null = null): {
+    currentDownload: Record<string, unknown> | null | undefined
+    queue: Record<string, unknown>[]
+  } {
     let _currentDownload = this.currentDownload
     if (libraryId && _currentDownload?.libraryId !== libraryId) _currentDownload = null
 
@@ -517,13 +550,12 @@ class PodcastManager {
   }
 
   /**
-   *
    * @param {string[]} rssFeedUrls
-   * @param {import('../models/LibraryFolder')} folder
+   * @param {LibraryFolder} folder
    * @param {boolean} autoDownloadEpisodes
-   * @param {import('../managers/CronManager')} cronManager
+   * @param {ICronManager} cronManager
    */
-  async createPodcastsFromFeedUrls(rssFeedUrls, folder, autoDownloadEpisodes, cronManager) {
+  async createPodcastsFromFeedUrls(rssFeedUrls: string[], folder: LibraryFolder, autoDownloadEpisodes: boolean, cronManager: ICronManager): Promise<void> {
     const taskTitleString = {
       text: 'OPML import',
       key: 'MessageTaskOpmlImport'
@@ -531,9 +563,9 @@ class PodcastManager {
     const taskDescriptionString = {
       text: `Creating podcasts from ${rssFeedUrls.length} RSS feeds`,
       key: 'MessageTaskOpmlImportDescription',
-      subs: [rssFeedUrls.length]
+      subs: [String(rssFeedUrls.length)]
     }
-    const task = TaskManager.createAndAddTask('opml-import', taskTitleString, taskDescriptionString, true, null)
+    const task = TaskManager.createAndAddTask('opml-import', taskTitleString, taskDescriptionString, true, undefined)
     let numPodcastsAdded = 0
     Logger.info(`[PodcastManager] createPodcastsFromFeedUrls: Importing ${rssFeedUrls.length} RSS feeds to folder "${folder.path}"`)
     for (const feedUrl of rssFeedUrls) {
@@ -557,7 +589,7 @@ class PodcastManager {
         continue
       }
 
-      const podcastFilename = sanitizeFilename(feed.metadata.title)
+      const podcastFilename = sanitizeFilename(feed.metadata.title || '')
       const podcastPath = filePathToPOSIX(`${folder.path}/${podcastFilename}`)
       // Check if a library item with this podcast folder exists already
       const existingLibraryItem =
@@ -575,7 +607,7 @@ class PodcastManager {
         const taskDescriptionStringPodcast = {
           text: `Creating podcast "${feed.metadata.title}"`,
           key: 'MessageTaskOpmlImportFeedPodcastDescription',
-          subs: [feed.metadata.title]
+          subs: [feed.metadata.title || '']
         }
         const taskErrorString = {
           text: 'Podcast already exists at path',
@@ -588,7 +620,7 @@ class PodcastManager {
       const successCreatingPath = await fs
         .ensureDir(podcastPath)
         .then(() => true)
-        .catch((error) => {
+        .catch((error: unknown) => {
           Logger.error(`[PodcastManager] Failed to ensure podcast dir "${podcastPath}"`, error)
           return false
         })
@@ -601,7 +633,7 @@ class PodcastManager {
         const taskDescriptionStringPodcast = {
           text: `Creating podcast "${feed.metadata.title}"`,
           key: 'MessageTaskOpmlImportFeedPodcastDescription',
-          subs: [feed.metadata.title]
+          subs: [feed.metadata.title || '']
         }
         const taskErrorString = {
           text: 'Failed to create podcast folder',
@@ -611,10 +643,16 @@ class PodcastManager {
         continue
       }
 
-      let newLibraryItem = null
+      let newLibraryItem: LibraryItem | null = null
+      if (!Database.sequelize) {
+        throw new Error('Database is not initialized')
+      }
       const transaction = await Database.sequelize.transaction()
       try {
         const libraryItemFolderStats = await getFileTimestampsWithIno(podcastPath)
+        if (!libraryItemFolderStats) {
+          throw new Error(`Failed to get timestamps and ino for "${podcastPath}"`)
+        }
 
         const podcastPayload = {
           autoDownloadEpisodes,
@@ -670,7 +708,7 @@ class PodcastManager {
         const taskDescriptionStringPodcast = {
           text: `Creating podcast "${feed.metadata.title}"`,
           key: 'MessageTaskOpmlImportFeedPodcastDescription',
-          subs: [feed.metadata.title]
+          subs: [feed.metadata.title || '']
         }
         const taskErrorString = {
           text: 'Failed to create podcast library item',
@@ -686,9 +724,9 @@ class PodcastManager {
       if (typeof feed.metadata.image === 'string' && feed.metadata.image.startsWith('http')) {
         // Podcast cover will always go into library item folder
         const coverResponse = await CoverManager.downloadCoverFromUrlNew(feed.metadata.image, newLibraryItem.id, newLibraryItem.path, true)
-        if (coverResponse.error) {
+        if ('error' in coverResponse && coverResponse.error) {
           Logger.error(`[PodcastManager] Download cover error from "${feed.metadata.image}": ${coverResponse.error}`)
-        } else if (coverResponse.cover) {
+        } else if ('cover' in coverResponse && coverResponse.cover) {
           const coverImageFileStats = await getFileTimestampsWithIno(coverResponse.cover)
           if (!coverImageFileStats) {
             Logger.error(`[PodcastManager] Failed to get cover image stats for "${coverResponse.cover}"`)
@@ -710,12 +748,14 @@ class PodcastManager {
                 birthtimeMs: coverImageFileStats.birthtimeMs || 0
               }
             }
-            newLibraryItem.libraryFiles.push(newLibraryFile)
+            newLibraryItem.libraryFiles.push(newLibraryFile as unknown as LibraryFileObject)
             newLibraryItem.changed('libraryFiles', true)
             await newLibraryItem.save()
 
-            newLibraryItem.media.coverPath = coverResponse.cover
-            await newLibraryItem.media.save()
+            if (newLibraryItem.media) {
+              (newLibraryItem.media as Podcast).coverPath = coverResponse.cover
+              await (newLibraryItem.media as Podcast).save()
+            }
           }
         }
       }
@@ -723,7 +763,7 @@ class PodcastManager {
       SocketAuthority.libraryItemEmitter('item_added', newLibraryItem)
 
       // Turn on podcast auto download cron if not already on
-      if (newLibraryItem.media.autoDownloadEpisodes) {
+      if ((newLibraryItem.media as Podcast).autoDownloadEpisodes) {
         cronManager.checkUpdatePodcastCron(newLibraryItem)
       }
 
@@ -733,11 +773,13 @@ class PodcastManager {
     const taskFinishedString = {
       text: `Added ${numPodcastsAdded} podcasts`,
       key: 'MessageTaskOpmlImportFinished',
-      subs: [numPodcastsAdded]
+      subs: [String(numPodcastsAdded)]
     }
     task.setFinished(taskFinishedString)
     TaskManager.taskFinished(task)
     Logger.info(`[PodcastManager] createPodcastsFromFeedUrls: Finished OPML import. Created ${numPodcastsAdded} podcasts out of ${rssFeedUrls.length} RSS feed URLs`)
   }
 }
-module.exports = PodcastManager
+
+export = PodcastManager
+
