@@ -501,3 +501,62 @@ export interface LibraryLike {
   [key: string]: unknown
 }
 
+export interface RssPodcastChapter {
+  id: number
+  title: string
+  start: number
+  end: number
+}
+
+export interface RssPodcastEpisodeEnclosure {
+  url: string
+  type?: string
+  length?: string
+  [key: string]: unknown
+}
+
+export interface RssPodcastEpisode {
+  title: string
+  subtitle: string
+  description: string
+  descriptionPlain: string
+  pubDate: string
+  episodeType: string
+  season: string
+  episode: string
+  author: string
+  duration: string
+  durationSeconds: number | null
+  explicit: string
+  publishedAt: number | null
+  enclosure: RssPodcastEpisodeEnclosure
+  guid: string | null
+  chaptersUrl: string | null
+  chaptersType: string | null
+  chapters: RssPodcastChapter[]
+  [key: string]: unknown
+}
+
+export interface RssPodcastMetadata {
+  title?: string
+  language?: string
+  explicit?: string
+  author?: string
+  pubDate?: string
+  link?: string
+  image: string | null
+  categories: string[]
+  feedUrl: string | null
+  description: string | null
+  descriptionPlain: string | null
+  type: string | null
+  [key: string]: unknown
+}
+
+export interface RssPodcast {
+  metadata: RssPodcastMetadata
+  episodes?: RssPodcastEpisode[]
+  numEpisodes?: number
+}
+
+
