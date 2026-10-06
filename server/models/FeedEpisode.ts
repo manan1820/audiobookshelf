@@ -149,7 +149,7 @@ class FeedEpisode extends Model {
    */
   static checkUseChapterTitlesForEpisodes(
     trackList: AudioTrack[],
-    book: { chapters?: Array<{ start: number; title?: string }> }
+    book: { chapters?: Array<{ start: number; title?: string }> | null }
   ): boolean {
     const chapters = book.chapters || []
     if (trackList.length !== chapters.length) return false

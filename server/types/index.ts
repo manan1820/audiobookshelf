@@ -57,11 +57,22 @@ export interface BookMetadataObject {
 }
 
 export interface EBookFileObject {
+  ino?: string
   ebookFormat: string
+  addedAt?: number
+  updatedAt?: number
   metadata: {
+    filename?: string
+    ext?: string
     path: string
+    relPath?: string
+    size?: number
+    mtimeMs?: number
+    ctimeMs?: number
+    birthtimeMs?: number
     [key: string]: unknown
   }
+  [key: string]: unknown
 }
 
 export interface EBookFileScanData {
