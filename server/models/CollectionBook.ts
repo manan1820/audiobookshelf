@@ -1,22 +1,20 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, Model, Sequelize } from 'sequelize'
 
 class CollectionBook extends Model {
-  constructor(values, options) {
-    super(values, options)
+  declare id: string
+  declare order: number
+  declare bookId: string
+  declare collectionId: string
+  declare createdAt: Date
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {number} */
-    this.order
-    /** @type {UUIDV4} */
-    this.bookId
-    /** @type {UUIDV4} */
-    this.collectionId
-    /** @type {Date} */
-    this.createdAt
-  }
+  static override init(sequelize: Sequelize): typeof CollectionBook
+  static override init(attributes: unknown, options: unknown): typeof CollectionBook
+  static override init(sequelizeOrAttributes: unknown, maybeOptions?: unknown): typeof CollectionBook {
+    if (maybeOptions) {
+      return super.init(sequelizeOrAttributes as never, maybeOptions as never) as unknown as typeof CollectionBook
+    }
 
-  static init(sequelize) {
+    const sequelize = sequelizeOrAttributes as Sequelize
     super.init(
       {
         id: {
@@ -49,7 +47,9 @@ class CollectionBook extends Model {
       onDelete: 'CASCADE'
     })
     CollectionBook.belongsTo(collection)
+
+    return CollectionBook
   }
 }
 
-module.exports = CollectionBook
+export = CollectionBook
