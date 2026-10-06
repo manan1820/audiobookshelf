@@ -649,5 +649,14 @@ export interface AbMergeEncodeOptions {
   [key: string]: unknown
 }
 
+declare global {
+  var ServerSettings: {
+    sortingIgnorePrefix?: boolean
+    allowIframe?: boolean
+    allowedOrigins?: string[]
+    [key: string]: unknown
+  }
+}
+
 
 
