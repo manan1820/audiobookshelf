@@ -1,37 +1,40 @@
-const child_process = require('child_process')
-const { promisify } = require('util')
-const exec = promisify(child_process.exec)
-const os = require('os')
-const axios = require('axios')
-const path = require('path')
-const which = require('../libs/which')
-const fs = require('../libs/fsExtra')
-const Logger = require('../Logger')
-const fileUtils = require('../utils/fileUtils')
-const StreamZip = require('../libs/nodeStreamZip')
+import child_process from 'child_process'
+import { promisify } from 'util'
+import os from 'os'
+import path from 'path'
+import axios from 'axios'
+import which from '../libs/which'
+import fs from '../libs/fsExtra'
+import Logger from '../Logger'
+import * as fileUtils from '../utils/fileUtils'
+import StreamZip from '../libs/nodeStreamZip'
 
-class ZippedAssetDownloader {
+const exec = promisify(child_process.exec)
+
+abstract class ZippedAssetDownloader {
+  assetCache: Record<string, unknown>
+
   constructor() {
     this.assetCache = {}
   }
 
-  getReleaseUrl(releaseTag) {
-    throw new Error('Not implemented')
+  getReleaseUrl(releaseTag: string): string {
+    throw new Error(`Not implemented for ${releaseTag}`)
   }
 
-  extractAssetUrl(assets, assetName) {
-    throw new Error('Not implemented')
+  extractAssetUrl(assets: unknown, assetName: string): string {
+    throw new Error(`Not implemented for ${assetName}`)
   }
 
-  getAssetName(binaryName, releaseTag) {
-    throw new Error('Not implemented')
+  getAssetName(binaryName: string, releaseTag?: string): string {
+    throw new Error(`Not implemented for ${binaryName} ${releaseTag}`)
   }
 
-  getAssetFileName(binaryName) {
-    throw new Error('Not implemented')
+  getAssetFileName(binaryName: string): string {
+    throw new Error(`Not implemented for ${binaryName}`)
   }
 
-  async getAssetUrl(releaseTag, assetName) {
+  async getAssetUrl(releaseTag: string, assetName: string): Promise<string> {
     // Check if the assets information is already cached for the release tag
     if (this.assetCache[releaseTag]) {
       Logger.debug(`[ZippedAssetDownloader] release ${releaseTag}: assets found in cache.`)
@@ -51,20 +54,20 @@ class ZippedAssetDownloader {
     return assetUrl
   }
 
-  async downloadAsset(assetUrl, destDir) {
+  async downloadAsset(assetUrl: string, destDir: string): Promise<string> {
     const zipPath = path.join(destDir, 'temp.zip')
     const writer = fs.createWriteStream(zipPath)
 
     const assetResponse = await axios({ url: assetUrl, responseType: 'stream' })
+    const stream = assetResponse.data as NodeJS.ReadableStream
+    stream.pipe(writer)
 
-    assetResponse.data.pipe(writer)
-
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       writer.on('finish', () => {
         Logger.debug(`[ZippedAssetDownloader] Downloaded asset ${assetUrl} to ${zipPath}`)
         resolve()
       })
-      writer.on('error', (err) => {
+      writer.on('error', (err: Error) => {
         Logger.error(`[ZippedAssetDownloader] Error downloading asset ${assetUrl}: ${err.message}`)
         reject(err)
       })
@@ -73,7 +76,11 @@ class ZippedAssetDownloader {
     return zipPath
   }
 
-  async extractFiles(zipPath, filesToExtract, destDir) {
+  async extractFiles(
+    zipPath: string,
+    filesToExtract: Array<{ pathInsideZip: string; outputFileName: string }>,
+    destDir: string
+  ): Promise<void> {
     const zip = new StreamZip.async({ file: zipPath })
 
     try {
@@ -99,21 +106,26 @@ class ZippedAssetDownloader {
     }
   }
 
-  async downloadAndExtractFiles(releaseTag, assetName, filesToExtract, destDir) {
-    let zipPath
+  async downloadAndExtractFiles(
+    releaseTag: string,
+    assetName: string,
+    filesToExtract: Array<{ pathInsideZip: string; outputFileName: string }>,
+    destDir: string
+  ): Promise<void> {
+    let zipPath: string | undefined
     try {
       await fs.ensureDir(destDir)
       const assetUrl = await this.getAssetUrl(releaseTag, assetName)
       zipPath = await this.downloadAsset(assetUrl, destDir)
       await this.extractFiles(zipPath, filesToExtract, destDir)
     } catch (error) {
-      Logger.error(`[ZippedAssetDownloader] Error downloading or extracting files: ${error.message}`)
+      Logger.error(`[ZippedAssetDownloader] Error downloading or extracting files: ${(error as Error).message}`)
     } finally {
       if (zipPath) await fs.remove(zipPath)
     }
   }
 
-  async downloadBinary(binaryName, releaseTag, destDir) {
+  async downloadBinary(binaryName: string, releaseTag: string, destDir: string): Promise<void> {
     const assetName = this.getAssetName(binaryName, releaseTag)
     const fileName = this.getAssetFileName(binaryName)
     const filesToExtract = [{ pathInsideZip: fileName, outputFileName: fileName }]
@@ -123,14 +135,16 @@ class ZippedAssetDownloader {
 }
 
 class FFBinariesDownloader extends ZippedAssetDownloader {
+  platformSuffix: string | null
+
   constructor() {
     super()
     this.platformSuffix = this.getPlatformSuffix()
   }
 
-  getPlatformSuffix() {
-    var type = os.type().toLowerCase()
-    var arch = os.arch().toLowerCase()
+  getPlatformSuffix(): string | null {
+    const type = os.type().toLowerCase()
+    const arch = os.arch().toLowerCase()
 
     if (type === 'darwin') {
       return 'osx-64'
@@ -149,12 +163,13 @@ class FFBinariesDownloader extends ZippedAssetDownloader {
     return null
   }
 
-  getReleaseUrl(releaseTag) {
+  override getReleaseUrl(releaseTag: string): string {
     return `https://ffbinaries.com/api/v1/version/${releaseTag}`
   }
 
-  extractAssetUrl(assets, assetName) {
-    const assetUrl = assets?.bin?.[this.platformSuffix]?.[assetName]
+  override extractAssetUrl(assets: unknown, assetName: string): string {
+    const a = assets as { bin?: Record<string, Record<string, string>> } | undefined
+    const assetUrl = this.platformSuffix && a?.bin?.[this.platformSuffix]?.[assetName]
 
     if (!assetUrl) {
       throw new Error(`[FFBinariesDownloader] Asset ${assetName} not found for platform ${this.platformSuffix}`)
@@ -163,22 +178,24 @@ class FFBinariesDownloader extends ZippedAssetDownloader {
     return assetUrl
   }
 
-  getAssetName(binaryName, releaseTag) {
+  override getAssetName(binaryName: string): string {
     return binaryName
   }
 
-  getAssetFileName(binaryName) {
+  override getAssetFileName(binaryName: string): string {
     return process.platform === 'win32' ? `${binaryName}.exe` : binaryName
   }
 }
 
 class NunicodeDownloader extends ZippedAssetDownloader {
+  platformSuffix: string | null
+
   constructor() {
     super()
     this.platformSuffix = this.getPlatformSuffix()
   }
 
-  getPlatformSuffix() {
+  getPlatformSuffix(): string | null {
     const platform = process.platform
     const arch = process.arch
 
@@ -195,18 +212,18 @@ class NunicodeDownloader extends ZippedAssetDownloader {
     return null
   }
 
-  async getAssetUrl(releaseTag, assetName) {
+  override async getAssetUrl(releaseTag: string, assetName: string): Promise<string> {
     return `https://github.com/mikiher/nunicode-sqlite/releases/download/v${releaseTag}/${assetName}`
   }
 
-  getAssetName(binaryName, releaseTag) {
+  override getAssetName(binaryName: string): string {
     if (!this.platformSuffix) {
       throw new Error(`[NunicodeDownloader] Platform ${process.platform}-${process.arch} not supported`)
     }
     return `${binaryName}-${this.platformSuffix}.zip`
   }
 
-  getAssetFileName(binaryName) {
+  override getAssetFileName(binaryName: string): string {
     if (process.platform === 'win32') {
       return `${binaryName}.dll`
     } else if (process.platform === 'darwin') {
@@ -220,7 +237,23 @@ class NunicodeDownloader extends ZippedAssetDownloader {
 }
 
 class Binary {
-  constructor(name, type, envVariable, validVersions, source, required = true) {
+  name: string
+  type: string
+  envVariable: string
+  validVersions: string[]
+  source: ZippedAssetDownloader
+  fileName: string
+  required: boolean
+  exec: (command: string) => Promise<{ stdout: string; stderr: string }>
+
+  constructor(
+    name: string,
+    type: string,
+    envVariable: string,
+    validVersions: string[],
+    source: ZippedAssetDownloader,
+    required = true
+  ) {
     if (!name) throw new Error('Binary name is required')
     this.name = name
     if (!type) throw new Error('Binary type is required')
@@ -236,10 +269,10 @@ class Binary {
     this.exec = exec
   }
 
-  async find(mainInstallDir, altInstallDir) {
+  async find(mainInstallDir: string, altInstallDir: string): Promise<string | null> {
     // 1. check path specified in environment variable
     const defaultPath = process.env[this.envVariable]
-    if (await this.isGood(defaultPath)) return defaultPath
+    if (await this.isGood(defaultPath)) return defaultPath!
     // 2. find the first instance of the binary in the PATH environment variable
     if (this.type === 'executable') {
       const whichPath = which.sync(this.fileName, { nothrow: true })
@@ -254,19 +287,19 @@ class Binary {
     return null
   }
 
-  getFileName() {
+  getFileName(): string {
     const platform = process.platform
 
     if (this.type === 'executable') {
-      return this.name + (platform == 'win32' ? '.exe' : '')
+      return this.name + (platform === 'win32' ? '.exe' : '')
     } else if (this.type === 'library') {
-      return this.name + (platform == 'win32' ? '.dll' : platform == 'darwin' ? '.dylib' : '.so')
+      return this.name + (platform === 'win32' ? '.dll' : platform === 'darwin' ? '.dylib' : '.so')
     } else {
       return this.name
     }
   }
 
-  async isLibraryVersionValid(libraryPath) {
+  async isLibraryVersionValid(libraryPath: string): Promise<boolean> {
     try {
       const versionFilePath = libraryPath + '.ver'
       if (!(await fs.pathExists(versionFilePath))) return false
@@ -278,10 +311,10 @@ class Binary {
     }
   }
 
-  async isExecutableVersionValid(executablePath) {
+  async isExecutableVersionValid(executablePath: string): Promise<boolean> {
     try {
       const { stdout } = await this.exec('"' + executablePath + '"' + ' -version')
-      const version = stdout.match(/version\s([\d\.]+)/)?.[1]
+      const version = stdout.match(/version\s([\d.]+)/)?.[1]
       if (!version) return false
       return this.validVersions.some((validVersion) => version.startsWith(validVersion))
     } catch (err) {
@@ -290,7 +323,7 @@ class Binary {
     }
   }
 
-  async isGood(binaryPath) {
+  async isGood(binaryPath?: string | null): Promise<boolean> {
     try {
       if (!binaryPath || !(await fs.pathExists(binaryPath))) return false
       if (this.type === 'library') return await this.isLibraryVersionValid(binaryPath)
@@ -302,7 +335,7 @@ class Binary {
     }
   }
 
-  async download(destination) {
+  async download(destination: string): Promise<void> {
     const version = this.validVersions[0]
     try {
       await this.source.downloadBinary(this.name, version, destination)
@@ -321,20 +354,29 @@ const ffbinaries = new FFBinariesDownloader()
 const nunicode = new NunicodeDownloader()
 
 class BinaryManager {
-  defaultRequiredBinaries = [
+  static Binary = Binary
+  static ffbinaries = ffbinaries
+  static nunicode = nunicode
+
+  defaultRequiredBinaries: Binary[] = [
     new Binary('ffmpeg', 'executable', 'FFMPEG_PATH', ['5.1'], ffbinaries), // ffmpeg executable
     new Binary('ffprobe', 'executable', 'FFPROBE_PATH', ['5.1'], ffbinaries), // ffprobe executable
     new Binary('libnusqlite3', 'library', 'NUSQLITE3_PATH', ['1.2'], nunicode, false) // nunicode sqlite3 extension
   ]
 
-  constructor(requiredBinaries = this.defaultRequiredBinaries) {
-    this.requiredBinaries = requiredBinaries
-    this.mainInstallDir = process.pkg ? path.dirname(process.execPath) : global.appRoot
+  requiredBinaries: Binary[]
+  mainInstallDir: string
+  altInstallDir: string
+  initialized: boolean
+
+  constructor(requiredBinaries?: Binary[]) {
+    this.requiredBinaries = requiredBinaries || this.defaultRequiredBinaries
+    this.mainInstallDir = (process as { pkg?: unknown }).pkg ? path.dirname(process.execPath) : global.appRoot
     this.altInstallDir = global.ConfigPath
     this.initialized = false
   }
 
-  async init() {
+  async init(): Promise<void> {
     // Optional skip binaries check
     if (process.env.SKIP_BINARIES_CHECK === '1') {
       for (const binary of this.requiredBinaries) {
@@ -350,13 +392,13 @@ class BinaryManager {
     if (this.initialized) return
 
     const missingBinaries = await this.findRequiredBinaries()
-    if (missingBinaries.length == 0) return
+    if (missingBinaries.length === 0) return
     await this.removeOldBinaries(missingBinaries)
     await this.install(missingBinaries)
     const missingBinariesAfterInstall = await this.findRequiredBinaries()
-    const missingRequiredBinryNames = missingBinariesAfterInstall.filter((binary) => binary.required).map((binary) => binary.name)
-    if (missingRequiredBinryNames.length) {
-      Logger.error(`[BinaryManager] Failed to find or install required binaries: ${missingRequiredBinryNames.join(', ')}`)
+    const missingRequiredBinaryNames = missingBinariesAfterInstall.filter((binary) => binary.required).map((binary) => binary.name)
+    if (missingRequiredBinaryNames.length) {
+      Logger.error(`[BinaryManager] Failed to find or install required binaries: ${missingRequiredBinaryNames.join(', ')}`)
       process.exit(1)
     }
     this.initialized = true
@@ -364,28 +406,23 @@ class BinaryManager {
 
   /**
    * Remove binary
-   *
-   * @param {string} destination
-   * @param {Binary} binary
    */
-  async removeBinary(destination, binary) {
+  async removeBinary(destination: string, binary: Binary): Promise<void> {
     const binaryPath = path.join(destination, binary.fileName)
     try {
       if (await fs.pathExists(binaryPath)) {
         Logger.debug(`[BinaryManager] Removing binary: ${binaryPath}`)
         await fs.remove(binaryPath)
       }
-    } catch (err) {
+    } catch {
       Logger.error(`[BinaryManager] Error removing binary: ${binaryPath}`)
     }
   }
 
   /**
    * Remove old binaries
-   *
-   * @param {Binary[]} binaries
    */
-  async removeOldBinaries(binaries) {
+  async removeOldBinaries(binaries: Binary[]): Promise<void> {
     for (const binary of binaries) {
       await this.removeBinary(this.mainInstallDir, binary)
       await this.removeBinary(this.altInstallDir, binary)
@@ -394,11 +431,9 @@ class BinaryManager {
 
   /**
    * Find required binaries and return array of binary names that are missing
-   *
-   * @returns {Promise<Binary[]>} Array of missing binaries
    */
-  async findRequiredBinaries() {
-    const missingBinaries = []
+  async findRequiredBinaries(): Promise<Binary[]> {
+    const missingBinaries: Binary[] = []
     for (const binary of this.requiredBinaries) {
       const binaryPath = await binary.find(this.mainInstallDir, this.altInstallDir)
       if (binaryPath) {
@@ -417,13 +452,11 @@ class BinaryManager {
 
   /**
    * Install missing binaries
-   *
-   * @param {Binary[]} binaries
    */
-  async install(binaries) {
+  async install(binaries: Binary[]): Promise<void> {
     if (!binaries.length) return
     Logger.info(`[BinaryManager] Installing binaries: ${binaries.map((binary) => binary.name).join(', ')}`)
-    let destination = (await fileUtils.isWritable(this.mainInstallDir)) ? this.mainInstallDir : this.altInstallDir
+    const destination = (await fileUtils.isWritable(this.mainInstallDir)) ? this.mainInstallDir : this.altInstallDir
     for (const binary of binaries) {
       await binary.download(destination)
     }
@@ -431,7 +464,4 @@ class BinaryManager {
   }
 }
 
-module.exports = BinaryManager
-module.exports.Binary = Binary // for testing
-module.exports.ffbinaries = ffbinaries // for testing
-module.exports.nunicode = nunicode // for testing
+export = BinaryManager

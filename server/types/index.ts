@@ -739,6 +739,8 @@ export interface FeedOptions {
 declare global {
   var MetadataPath: string | undefined
   var RouterBasePath: string | undefined
+  var ConfigPath: string
+  var appRoot: string
   var ServerSettings: {
     sortingIgnorePrefix?: boolean
     allowIframe?: boolean
