@@ -1,22 +1,42 @@
-const { expect } = require('chai')
-const sinon = require('sinon')
-const fileUtils = require('../../../server/utils/fileUtils')
-const fs = require('../../../server/libs/fsExtra')
-const EventEmitter = require('events')
+import { expect } from 'chai'
+import sinon from 'sinon'
+import fs from '../../../server/libs/fsExtra'
+import EventEmitter from 'events'
+import { generateFFMetadata, addCoverAndMetadataToFile } from '../../../server/utils/ffmpegHelpers'
+import { FFMetadataChapter } from '../../../server/types'
+import Ffmpeg from '../../../server/libs/fluentFfmpeg'
 
-const { generateFFMetadata, addCoverAndMetadataToFile } = require('../../../server/utils/ffmpegHelpers')
+declare global {
+  var isWin: boolean | undefined
+}
 
 global.isWin = process.platform === 'win32'
 
+interface TestSetup {
+  audioFilePath: string
+  coverFilePath: string | null
+  metadataFilePath: string
+  track: number
+  mimeType: string
+  ffmpegStub: EventEmitter & {
+    input: sinon.SinonStub
+    outputOptions: sinon.SinonStub
+    output: sinon.SinonStub
+    run: sinon.SinonStub
+  }
+  copyStub: sinon.SinonStub
+  fsRemoveStub: sinon.SinonStub
+}
+
 describe('generateFFMetadata', () => {
-  function createTestSetup() {
+  function createTestSetup(): { metadata: Record<string, string>; chapters: FFMetadataChapter[] } {
     const metadata = {
       title: 'My Audiobook',
       artist: 'John Doe',
       album: 'Best Audiobooks'
     }
 
-    const chapters = [
+    const chapters: FFMetadataChapter[] = [
       { start: 0, end: 1000, title: 'Chapter 1' },
       { start: 1000, end: 2000, title: 'Chapter 2' }
     ]
@@ -24,8 +44,8 @@ describe('generateFFMetadata', () => {
     return { metadata, chapters }
   }
 
-  let metadata = null
-  let chapters = null
+  let metadata: Record<string, string>
+  let chapters: FFMetadataChapter[] | null
   beforeEach(() => {
     const input = createTestSetup()
     metadata = input.metadata
@@ -35,7 +55,9 @@ describe('generateFFMetadata', () => {
   it('should generate ffmetadata content with chapters', () => {
     const result = generateFFMetadata(metadata, chapters)
 
-    expect(result).to.equal(';FFMETADATA1\ntitle=My Audiobook\nartist=John Doe\nalbum=Best Audiobooks\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=1000000\ntitle=Chapter 1\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=1000000\nEND=2000000\ntitle=Chapter 2\n')
+    expect(result).to.equal(
+      ';FFMETADATA1\ntitle=My Audiobook\nartist=John Doe\nalbum=Best Audiobooks\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=1000000\ntitle=Chapter 1\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=1000000\nEND=2000000\ntitle=Chapter 2\n'
+    )
   })
 
   it('should generate ffmetadata content without chapters', () => {
@@ -54,32 +76,40 @@ describe('generateFFMetadata', () => {
 
     const result = generateFFMetadata(metadata, chapters)
 
-    expect(result).to.equal(';FFMETADATA1\ntitle=My Audiobook\nartist=John Doe\nalbum=Best Audiobooks\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=1000000\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=1000000\nEND=2000000\n')
+    expect(result).to.equal(
+      ';FFMETADATA1\ntitle=My Audiobook\nartist=John Doe\nalbum=Best Audiobooks\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=1000000\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=1000000\nEND=2000000\n'
+    )
   })
 
   it('should handle metadata escaping special characters (=, ;, #,  and a newline)', () => {
     metadata.title = 'My Audiobook; with = special # characters\n'
-    chapters[0].title = 'Chapter #1'
+    chapters![0]!.title = 'Chapter #1'
 
     const result = generateFFMetadata(metadata, chapters)
 
-    expect(result).to.equal(';FFMETADATA1\ntitle=My Audiobook\\; with \\= special \\# characters\\\n\nartist=John Doe\nalbum=Best Audiobooks\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=1000000\ntitle=Chapter \\#1\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=1000000\nEND=2000000\ntitle=Chapter 2\n')
+    expect(result).to.equal(
+      ';FFMETADATA1\ntitle=My Audiobook\\; with \\= special \\# characters\\\n\nartist=John Doe\nalbum=Best Audiobooks\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=1000000\ntitle=Chapter \\#1\n\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=1000000\nEND=2000000\ntitle=Chapter 2\n'
+    )
   })
 })
 
 describe('addCoverAndMetadataToFile', () => {
-  function createTestSetup() {
+  function createTestSetup(): TestSetup {
     const audioFilePath = '/path/to/audio/file.mp3'
     const coverFilePath = '/path/to/cover/image.jpg'
     const metadataFilePath = '/path/to/metadata/file.txt'
     const track = 1
     const mimeType = 'audio/mpeg'
 
-    const ffmpegStub = new EventEmitter()
+    const ffmpegStub = new EventEmitter() as EventEmitter & {
+      input: sinon.SinonStub
+      outputOptions: sinon.SinonStub
+      output: sinon.SinonStub
+      run: sinon.SinonStub
+    }
     ffmpegStub.input = sinon.stub().returnsThis()
     ffmpegStub.outputOptions = sinon.stub().returnsThis()
     ffmpegStub.output = sinon.stub().returnsThis()
-    ffmpegStub.input = sinon.stub().returnsThis()
     ffmpegStub.run = sinon.stub().callsFake(() => {
       ffmpegStub.emit('end')
     })
@@ -89,14 +119,15 @@ describe('addCoverAndMetadataToFile', () => {
     return { audioFilePath, coverFilePath, metadataFilePath, track, mimeType, ffmpegStub, copyStub, fsRemoveStub }
   }
 
-  let audioFilePath = null
-  let coverFilePath = null
-  let metadataFilePath = null
-  let track = null
-  let mimeType = null
-  let ffmpegStub = null
-  let copyStub = null
-  let fsRemoveStub = null
+  let audioFilePath: string
+  let coverFilePath: string | null
+  let metadataFilePath: string
+  let track: number
+  let mimeType: string
+  let ffmpegStub: TestSetup['ffmpegStub']
+  let copyStub: sinon.SinonStub
+  let fsRemoveStub: sinon.SinonStub
+
   beforeEach(() => {
     const input = createTestSetup()
     audioFilePath = input.audioFilePath
@@ -111,7 +142,16 @@ describe('addCoverAndMetadataToFile', () => {
 
   it('should add cover image and metadata to audio file', async () => {
     // Act
-    await addCoverAndMetadataToFile(audioFilePath, coverFilePath, metadataFilePath, track, mimeType, null, ffmpegStub, copyStub)
+    await addCoverAndMetadataToFile(
+      audioFilePath,
+      coverFilePath,
+      metadataFilePath,
+      track,
+      mimeType,
+      null,
+      ffmpegStub as unknown as Ffmpeg.FfmpegCommand,
+      copyStub
+    )
 
     // Assert
     expect(ffmpegStub.input.calledThrice).to.be.true
@@ -120,10 +160,23 @@ describe('addCoverAndMetadataToFile', () => {
     expect(ffmpegStub.input.getCall(2).args[0]).to.equal(coverFilePath)
 
     expect(ffmpegStub.outputOptions.callCount).to.equal(4)
-    expect(ffmpegStub.outputOptions.getCall(0).args[0]).to.deep.equal(['-map 0:a', '-map_metadata 1', '-map_metadata 0', '-map_chapters 1', '-c copy'])
+    expect(ffmpegStub.outputOptions.getCall(0).args[0]).to.deep.equal([
+      '-map 0:a',
+      '-map_metadata 1',
+      '-map_metadata 0',
+      '-map_chapters 1',
+      '-c copy'
+    ])
     expect(ffmpegStub.outputOptions.getCall(1).args[0]).to.deep.equal(['-metadata track=1'])
     expect(ffmpegStub.outputOptions.getCall(2).args[0]).to.deep.equal(['-id3v2_version 3'])
-    expect(ffmpegStub.outputOptions.getCall(3).args[0]).to.deep.equal(['-map 2:v', '-disposition:v:0 attached_pic', '-metadata:s:v', 'title=Cover', '-metadata:s:v', 'comment=Cover'])
+    expect(ffmpegStub.outputOptions.getCall(3).args[0]).to.deep.equal([
+      '-map 2:v',
+      '-disposition:v:0 attached_pic',
+      '-metadata:s:v',
+      'title=Cover',
+      '-metadata:s:v',
+      'comment=Cover'
+    ])
 
     expect(ffmpegStub.output.calledOnce).to.be.true
     expect(ffmpegStub.output.firstCall.args[0]).to.equal('/path/to/audio/file.tmp.mp3')
@@ -145,7 +198,16 @@ describe('addCoverAndMetadataToFile', () => {
     coverFilePath = null
 
     // Act
-    await addCoverAndMetadataToFile(audioFilePath, coverFilePath, metadataFilePath, track, mimeType, null, ffmpegStub, copyStub)
+    await addCoverAndMetadataToFile(
+      audioFilePath,
+      coverFilePath,
+      metadataFilePath,
+      track,
+      mimeType,
+      null,
+      ffmpegStub as unknown as Ffmpeg.FfmpegCommand,
+      copyStub
+    )
 
     // Assert
     expect(ffmpegStub.input.calledTwice).to.be.true
@@ -153,7 +215,13 @@ describe('addCoverAndMetadataToFile', () => {
     expect(ffmpegStub.input.getCall(1).args[0]).to.equal(metadataFilePath)
 
     expect(ffmpegStub.outputOptions.callCount).to.equal(4)
-    expect(ffmpegStub.outputOptions.getCall(0).args[0]).to.deep.equal(['-map 0:a', '-map_metadata 1', '-map_metadata 0', '-map_chapters 1', '-c copy'])
+    expect(ffmpegStub.outputOptions.getCall(0).args[0]).to.deep.equal([
+      '-map 0:a',
+      '-map_metadata 1',
+      '-map_metadata 0',
+      '-map_chapters 1',
+      '-c copy'
+    ])
     expect(ffmpegStub.outputOptions.getCall(1).args[0]).to.deep.equal(['-metadata track=1'])
     expect(ffmpegStub.outputOptions.getCall(2).args[0]).to.deep.equal(['-id3v2_version 3'])
     expect(ffmpegStub.outputOptions.getCall(3).args[0]).to.deep.equal(['-map 0:v?'])
@@ -181,11 +249,20 @@ describe('addCoverAndMetadataToFile', () => {
 
     // Act
     try {
-      await addCoverAndMetadataToFile(audioFilePath, coverFilePath, metadataFilePath, track, mimeType, null, ffmpegStub, copyStub)
+      await addCoverAndMetadataToFile(
+        audioFilePath,
+        coverFilePath,
+        metadataFilePath,
+        track,
+        mimeType,
+        null,
+        ffmpegStub as unknown as Ffmpeg.FfmpegCommand,
+        copyStub
+      )
       expect.fail('Expected an error to be thrown')
-    } catch (error) {
+    } catch (error: unknown) {
       // Assert
-      expect(error.message).to.equal('FFmpeg error')
+      expect((error as Error).message).to.equal('FFmpeg error')
     }
 
     // Assert
@@ -195,10 +272,23 @@ describe('addCoverAndMetadataToFile', () => {
     expect(ffmpegStub.input.getCall(2).args[0]).to.equal(coverFilePath)
 
     expect(ffmpegStub.outputOptions.callCount).to.equal(4)
-    expect(ffmpegStub.outputOptions.getCall(0).args[0]).to.deep.equal(['-map 0:a', '-map_metadata 1', '-map_metadata 0', '-map_chapters 1', '-c copy'])
+    expect(ffmpegStub.outputOptions.getCall(0).args[0]).to.deep.equal([
+      '-map 0:a',
+      '-map_metadata 1',
+      '-map_metadata 0',
+      '-map_chapters 1',
+      '-c copy'
+    ])
     expect(ffmpegStub.outputOptions.getCall(1).args[0]).to.deep.equal(['-metadata track=1'])
     expect(ffmpegStub.outputOptions.getCall(2).args[0]).to.deep.equal(['-id3v2_version 3'])
-    expect(ffmpegStub.outputOptions.getCall(3).args[0]).to.deep.equal(['-map 2:v', '-disposition:v:0 attached_pic', '-metadata:s:v', 'title=Cover', '-metadata:s:v', 'comment=Cover'])
+    expect(ffmpegStub.outputOptions.getCall(3).args[0]).to.deep.equal([
+      '-map 2:v',
+      '-disposition:v:0 attached_pic',
+      '-metadata:s:v',
+      'title=Cover',
+      '-metadata:s:v',
+      'comment=Cover'
+    ])
 
     expect(ffmpegStub.output.calledOnce).to.be.true
     expect(ffmpegStub.output.firstCall.args[0]).to.equal('/path/to/audio/file.tmp.mp3')
@@ -218,7 +308,16 @@ describe('addCoverAndMetadataToFile', () => {
     audioFilePath = '/path/to/audio/file.m4b'
 
     // Act
-    await addCoverAndMetadataToFile(audioFilePath, coverFilePath, metadataFilePath, track, mimeType, null, ffmpegStub, copyStub)
+    await addCoverAndMetadataToFile(
+      audioFilePath,
+      coverFilePath,
+      metadataFilePath,
+      track,
+      mimeType,
+      null,
+      ffmpegStub as unknown as Ffmpeg.FfmpegCommand,
+      copyStub
+    )
 
     // Assert
     expect(ffmpegStub.input.calledThrice).to.be.true
@@ -227,10 +326,23 @@ describe('addCoverAndMetadataToFile', () => {
     expect(ffmpegStub.input.getCall(2).args[0]).to.equal(coverFilePath)
 
     expect(ffmpegStub.outputOptions.callCount).to.equal(4)
-    expect(ffmpegStub.outputOptions.getCall(0).args[0]).to.deep.equal(['-map 0:a', '-map_metadata 1', '-map_metadata 0', '-map_chapters 1', '-c copy'])
+    expect(ffmpegStub.outputOptions.getCall(0).args[0]).to.deep.equal([
+      '-map 0:a',
+      '-map_metadata 1',
+      '-map_metadata 0',
+      '-map_chapters 1',
+      '-c copy'
+    ])
     expect(ffmpegStub.outputOptions.getCall(1).args[0]).to.deep.equal(['-metadata track=1'])
     expect(ffmpegStub.outputOptions.getCall(2).args[0]).to.deep.equal(['-f mp4'])
-    expect(ffmpegStub.outputOptions.getCall(3).args[0]).to.deep.equal(['-map 2:v', '-disposition:v:0 attached_pic', '-metadata:s:v', 'title=Cover', '-metadata:s:v', 'comment=Cover'])
+    expect(ffmpegStub.outputOptions.getCall(3).args[0]).to.deep.equal([
+      '-map 2:v',
+      '-disposition:v:0 attached_pic',
+      '-metadata:s:v',
+      'title=Cover',
+      '-metadata:s:v',
+      'comment=Cover'
+    ])
 
     expect(ffmpegStub.output.calledOnce).to.be.true
     expect(ffmpegStub.output.firstCall.args[0]).to.equal('/path/to/audio/file.tmp.m4b')

@@ -559,4 +559,95 @@ export interface RssPodcast {
   numEpisodes?: number
 }
 
+export interface ConcatAudioTrack {
+  index: number
+  duration: number
+  metadata: {
+    path: string
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+export interface FFMetadataChapter {
+  start: number
+  end: number
+  title?: string
+  [key: string]: unknown
+}
+
+export interface PodcastEpisodeDownloadLike {
+  url: string
+  targetPath: string
+  pubYear?: string | number | null
+  pubDate?: string | null
+  libraryItem: {
+    media: {
+      title?: string | null
+      author?: string | null
+      genres: string[]
+      language?: string | null
+      itunesId?: string | null
+      podcastType?: string | null
+      [key: string]: unknown
+    }
+    [key: string]: unknown
+  }
+  rssPodcastEpisode: {
+    title?: string | null
+    subtitle?: string | null
+    description?: string | null
+    season?: string | null
+    episode?: string | null
+    episodeType?: string | null
+    pubDate?: string | null
+    enclosure?: {
+      length?: string | number | null
+      [key: string]: unknown
+    } | null
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+export interface LibraryItemMediaMetadataLike {
+  media: {
+    title?: string | null
+    subtitle?: string | null
+    authorName?: string | null
+    genres?: string[] | null
+    publishedYear?: string | number | null
+    description?: string | null
+    narrators?: string[] | null
+    publisher?: string | null
+    series?: Array<{
+      name: string
+      bookSeries: {
+        sequence?: string | null
+      }
+    }> | null
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+export interface MergeAudioTrack {
+  index: number
+  duration: number
+  metadata: {
+    path: string
+    ext: string
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+export interface AbMergeEncodeOptions {
+  bitrate?: string
+  codec?: string
+  channels?: number
+  [key: string]: unknown
+}
+
+
 
