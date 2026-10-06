@@ -741,8 +741,48 @@ declare global {
     sortingIgnorePrefix?: boolean
     allowIframe?: boolean
     allowedOrigins?: string[]
+    authOpenIDMatchExistingBy?: string
     [key: string]: unknown
   }
+}
+
+export interface AudioBookmarkObject {
+  libraryItemId: string
+  title: string
+  time: number
+  createdAt: number
+}
+
+export interface UserPermissions {
+  download?: boolean
+  update?: boolean
+  delete?: boolean
+  upload?: boolean
+  createEreader?: boolean
+  accessAllLibraries?: boolean
+  accessAllTags?: boolean
+  accessExplicitContent?: boolean
+  selectedTagsNotAccessible?: boolean
+  librariesAccessible?: string[]
+  itemTagsSelected?: string[]
+  [key: string]: unknown
+}
+
+export interface UserExtraData {
+  seriesHideFromContinueListening?: string[]
+  authOpenIDSub?: string
+  oldUserId?: string
+  [key: string]: unknown
+}
+
+export interface OpenIdUserInfo {
+  sub: string
+  email?: string
+  email_verified?: boolean
+  preferred_username?: string
+  username?: string
+  name?: string
+  [key: string]: unknown
 }
 
 

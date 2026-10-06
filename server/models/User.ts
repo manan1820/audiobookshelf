@@ -1,120 +1,84 @@
-const uuidv4 = require('uuid').v4
-const sequelize = require('sequelize')
-const { LRUCache } = require('lru-cache')
+import { v4 as uuidv4 } from 'uuid'
+import sequelize, { DataTypes, Model, Op, type Sequelize, type Transaction } from 'sequelize'
+import { LRUCache } from 'lru-cache'
 
-const Logger = require('../Logger')
-const SocketAuthority = require('../SocketAuthority')
-const { isNullOrNaN } = require('../utils')
-const TokenManager = require('../auth/TokenManager')
+import Logger from '../Logger'
+import SocketAuthority from '../SocketAuthority'
+import { isNullOrNaN } from '../utils'
+import TokenManager from '../auth/TokenManager'
+import type { AudioBookmarkObject, OpenIdUserInfo, ProgressUpdatePayload, UserExtraData, UserPermissions } from '../types'
+import type MediaProgress from './MediaProgress'
+import type LibraryItem from './LibraryItem'
+import type Book from './Book'
+import type PodcastEpisode from './PodcastEpisode'
 
 class UserCache {
+  private cache: LRUCache<string, User>
+
   constructor() {
-    this.cache = new LRUCache({ max: 100 })
+    this.cache = new LRUCache<string, User>({ max: 100 })
   }
 
-  getById(id) {
+  getById(id: string): User | undefined {
     const user = this.cache.get(id)
     return user
   }
 
-  getByEmail(email) {
+  getByEmail(email: string): User | undefined {
     const user = this.cache.find((u) => u.email === email)
     return user
   }
 
-  getByUsername(username) {
+  getByUsername(username: string): User | undefined {
     const user = this.cache.find((u) => u.username === username)
     return user
   }
 
-  getByOldId(oldUserId) {
+  getByOldId(oldUserId: string): User | undefined {
     const user = this.cache.find((u) => u.extraData?.oldUserId === oldUserId)
     return user
   }
 
-  getByOpenIDSub(sub) {
+  getByOpenIDSub(sub: string): User | undefined {
     const user = this.cache.find((u) => u.extraData?.authOpenIDSub === sub)
     return user
   }
 
-  set(user) {
+  set(user: User): void {
     user.fromCache = true
     this.cache.set(user.id, user)
   }
 
-  delete(userId) {
+  delete(userId: string): void {
     this.cache.delete(userId)
   }
 
-  maybeInvalidate(user) {
+  maybeInvalidate(user: User): void {
     if (!user.fromCache) this.delete(user.id)
   }
 }
 
 const userCache = new UserCache()
 
-const { DataTypes, Model } = sequelize
-
-/**
- * @typedef AudioBookmarkObject
- * @property {string} libraryItemId
- * @property {string} title
- * @property {number} time
- * @property {number} createdAt
- */
-
-/**
- * @typedef ProgressUpdatePayload
- * @property {string} libraryItemId
- * @property {string} [episodeId]
- * @property {number} [duration]
- * @property {number} [progress]
- * @property {number} [currentTime]
- * @property {boolean} [isFinished]
- * @property {boolean} [hideFromContinueListening]
- * @property {string} [ebookLocation]
- * @property {number} [ebookProgress]
- * @property {string} [finishedAt]
- * @property {number} [lastUpdate]
- * @property {number} [markAsFinishedTimeRemaining]
- * @property {number} [markAsFinishedPercentComplete]
- */
-
 class User extends Model {
-  constructor(values, options) {
-    super(values, options)
+  declare id: string
+  declare username: string
+  declare email: string | null
+  declare pash: string | null
+  declare type: string
+  declare token: string | null
+  declare isActive: boolean
+  declare isLocked: boolean
+  declare lastSeen: Date | null
+  declare permissions: UserPermissions
+  declare bookmarks: AudioBookmarkObject[]
+  declare extraData: UserExtraData
+  declare createdAt: Date
+  declare updatedAt: Date
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {string} */
-    this.username
-    /** @type {string} */
-    this.email
-    /** @type {string} */
-    this.pash
-    /** @type {string} */
-    this.type
-    /** @type {string} */
-    this.token
-    /** @type {boolean} */
-    this.isActive
-    /** @type {boolean} */
-    this.isLocked
-    /** @type {Date} */
-    this.lastSeen
-    /** @type {Object} */
-    this.permissions
-    /** @type {AudioBookmarkObject[]} */
-    this.bookmarks
-    /** @type {Object} */
-    this.extraData
-    /** @type {Date} */
-    this.createdAt
-    /** @type {Date} */
-    this.updatedAt
-    /** @type {import('./MediaProgress')[]?} - Only included when extended */
-    this.mediaProgresses
-  }
+  declare mediaProgresses?: MediaProgress[]
+  declare isOldToken?: boolean
+  declare fromCache?: boolean
 
   // Excludes "root" since their can only be 1 root user
   static accountTypes = ['admin', 'user', 'guest']
@@ -123,7 +87,7 @@ class User extends Model {
    * List of expected permission properties from the client
    * Only used for OpenID
    */
-  static permissionMapping = {
+  static permissionMapping: Record<string, string> = {
     canDownload: 'download',
     canUpload: 'upload',
     canDelete: 'delete',
@@ -142,16 +106,16 @@ class User extends Model {
    * Get a sample to show how a JSON for updatePermissionsFromExternalJSON should look like
    * Only used for OpenID
    *
-   * @returns {string} JSON string
+   * @returns JSON string
    */
-  static getSampleAbsPermissions() {
+  static getSampleAbsPermissions(): string {
     // Start with a template object where all permissions are false for simplicity
-    const samplePermissions = Object.keys(User.permissionMapping).reduce((acc, key) => {
+    const samplePermissions = Object.keys(User.permissionMapping).reduce<Record<string, unknown>>((acc, key) => {
       // For array-based permissions, provide a sample array
       if (key === 'allowedLibraries') {
-        acc[key] = [`5406ba8a-16e1-451d-96d7-4931b0a0d966`, `918fd848-7c1d-4a02-818a-847435a879ca`]
+        acc[key] = ['5406ba8a-16e1-451d-96d7-4931b0a0d966', '918fd848-7c1d-4a02-818a-847435a879ca']
       } else if (key === 'allowedTags') {
-        acc[key] = [`ExampleTag`, `AnotherTag`, `ThirdTag`]
+        acc[key] = ['ExampleTag', 'AnotherTag', 'ThirdTag']
       } else {
         acc[key] = false
       }
@@ -161,12 +125,7 @@ class User extends Model {
     return JSON.stringify(samplePermissions, null, 2) // Pretty print the JSON
   }
 
-  /**
-   *
-   * @param {string} type
-   * @returns
-   */
-  static getDefaultPermissionsForUserType(type) {
+  static getDefaultPermissionsForUserType(type: string): UserPermissions {
     return {
       download: true,
       update: type === 'root' || type === 'admin',
@@ -184,12 +143,13 @@ class User extends Model {
 
   /**
    * Create root user
-   * @param {string} username
-   * @param {string} pash
-   * @param {import('../Auth')} auth
-   * @returns {Promise<User>}
    */
-  static async createRootUser(username, pash, auth, transaction = null) {
+  static async createRootUser(
+    username: string,
+    pash: string,
+    auth: { generateAccessToken(user: { id: string; username: string }): string },
+    transaction: Transaction | null = null
+  ): Promise<User> {
     const userId = uuidv4()
 
     const token = auth.generateAccessToken({ id: userId, username })
@@ -207,17 +167,14 @@ class User extends Model {
         seriesHideFromContinueListening: []
       }
     }
-    return this.create(newUser, { transaction })
+    return (await this.create(newUser, { transaction: transaction || undefined })) as User
   }
 
   /**
    * Finds an existing user by OpenID subject identifier, or by email/username based on server settings
    * Returns null if no user is found
-   *
-   * @param {Object} userinfo
-   * @returns {Promise<User|{error: string}>}
    */
-  static async findUserFromOpenIdUserInfo(userinfo) {
+  static async findUserFromOpenIdUserInfo(userinfo: OpenIdUserInfo): Promise<User | { error: string } | null> {
     let user = await this.getUserByOpenIDSub(userinfo.sub)
 
     // Matched by sub
@@ -254,10 +211,8 @@ class User extends Model {
           error: 'No email in userinfo'
         }
       }
-    }
-    // Match existing user by username
-    else if (global.ServerSettings.authOpenIDMatchExistingBy === 'username') {
-      let username
+    } else if (global.ServerSettings.authOpenIDMatchExistingBy === 'username') {
+      let username: string | undefined
 
       if (userinfo.preferred_username) {
         Logger.info(`[User] openid: User not found, checking existing with userinfo.preferred_username "${userinfo.preferred_username}"`)
@@ -305,13 +260,11 @@ class User extends Model {
 
   /**
    * Create user from openid userinfo
-   * @param {Object} userinfo
-   * @returns {Promise<User>}
    */
-  static async createUserFromOpenIdUserInfo(userinfo) {
+  static async createUserFromOpenIdUserInfo(userinfo: OpenIdUserInfo): Promise<User | null> {
     const userId = uuidv4()
     // TODO: Ensure username is unique?
-    const username = userinfo.preferred_username || userinfo.name || userinfo.sub
+    const username = (userinfo.preferred_username || userinfo.name || userinfo.sub) as string
     const email = userinfo.email && userinfo.email_verified ? userinfo.email : null
 
     const token = TokenManager.generateAccessToken({ id: userId, username })
@@ -331,7 +284,7 @@ class User extends Model {
         seriesHideFromContinueListening: []
       }
     }
-    const user = await this.create(newUser)
+    const user = (await this.create(newUser)) as User
 
     if (user) {
       SocketAuthority.adminEmitter('user_added', user.toOldJSONForBrowser())
@@ -342,19 +295,17 @@ class User extends Model {
 
   /**
    * Get user by username case insensitive
-   * @param {string} username
-   * @returns {Promise<User>}
    */
-  static async getUserByUsername(username) {
+  static async getUserByUsername(username: string): Promise<User | null> {
     if (!username) return null
 
     const cachedUser = userCache.getByUsername(username)
     if (cachedUser) return cachedUser
 
-    const user = await this.findOne({
+    const user = (await this.findOne({
       where: sequelize.where(sequelize.fn('lower', sequelize.col('username')), username.toLowerCase()),
-      include: this.sequelize.models.mediaProgress
-    })
+      include: [this.sequelize!.models.mediaProgress]
+    })) as User | null
 
     if (user) userCache.set(user)
 
@@ -363,19 +314,17 @@ class User extends Model {
 
   /**
    * Get user by email case insensitive
-   * @param {string} email
-   * @returns {Promise<User>}
    */
-  static async getUserByEmail(email) {
+  static async getUserByEmail(email: string): Promise<User | null> {
     if (!email) return null
 
     const cachedUser = userCache.getByEmail(email)
     if (cachedUser) return cachedUser
 
-    const user = await this.findOne({
+    const user = (await this.findOne({
       where: sequelize.where(sequelize.fn('lower', sequelize.col('email')), email.toLowerCase()),
-      include: this.sequelize.models.mediaProgress
-    })
+      include: [this.sequelize!.models.mediaProgress]
+    })) as User | null
 
     if (user) userCache.set(user)
 
@@ -384,18 +333,16 @@ class User extends Model {
 
   /**
    * Get user by id
-   * @param {string} userId
-   * @returns {Promise<User>}
    */
-  static async getUserById(userId) {
+  static async getUserById(userId: string): Promise<User | null> {
     if (!userId) return null
 
     const cachedUser = userCache.getById(userId)
     if (cachedUser) return cachedUser
 
-    const user = await this.findByPk(userId, {
-      include: this.sequelize.models.mediaProgress
-    })
+    const user = (await this.findByPk(userId, {
+      include: [this.sequelize!.models.mediaProgress]
+    })) as User | null
 
     if (user) userCache.set(user)
 
@@ -405,21 +352,18 @@ class User extends Model {
   /**
    * Get user by id or old id
    * JWT tokens generated before 2.3.0 used old user ids
-   *
-   * @param {string} userId
-   * @returns {Promise<User>}
    */
-  static async getUserByIdOrOldId(userId) {
+  static async getUserByIdOrOldId(userId: string): Promise<User | null> {
     if (!userId) return null
     const cachedUser = userCache.getById(userId) || userCache.getByOldId(userId)
     if (cachedUser) return cachedUser
 
-    const user = await this.findOne({
+    const user = (await this.findOne({
       where: {
-        [sequelize.Op.or]: [{ id: userId }, { 'extraData.oldUserId': userId }]
+        [Op.or]: [{ id: userId }, { 'extraData.oldUserId': userId }]
       },
-      include: this.sequelize.models.mediaProgress
-    })
+      include: [this.sequelize!.models.mediaProgress]
+    })) as User | null
 
     if (user) userCache.set(user)
 
@@ -428,19 +372,17 @@ class User extends Model {
 
   /**
    * Get user by openid sub
-   * @param {string} sub
-   * @returns {Promise<User>}
    */
-  static async getUserByOpenIDSub(sub) {
+  static async getUserByOpenIDSub(sub: string): Promise<User | null> {
     if (!sub) return null
 
     const cachedUser = userCache.getByOpenIDSub(sub)
     if (cachedUser) return cachedUser
 
-    const user = await this.findOne({
+    const user = (await this.findOne({
       where: sequelize.where(sequelize.literal(`extraData->>"authOpenIDSub"`), sub),
-      include: this.sequelize.models.mediaProgress
-    })
+      include: [this.sequelize!.models.mediaProgress]
+    })) as User | null
 
     if (user) userCache.set(user)
 
@@ -449,12 +391,11 @@ class User extends Model {
 
   /**
    * Get array of user id and username
-   * @returns {object[]} { id, username }
    */
-  static async getMinifiedUserObjects() {
-    const users = await this.findAll({
+  static async getMinifiedUserObjects(): Promise<Array<{ id: string; username: string }>> {
+    const users = (await this.findAll({
       attributes: ['id', 'username']
-    })
+    })) as User[]
     return users.map((u) => {
       return {
         id: u.id,
@@ -465,9 +406,8 @@ class User extends Model {
 
   /**
    * Return true if root user exists
-   * @returns {boolean}
    */
-  static async getHasRootUser() {
+  static async getHasRootUser(): Promise<boolean> {
     const count = await this.count({
       where: {
         type: 'root'
@@ -478,10 +418,8 @@ class User extends Model {
 
   /**
    * Check if user exists with username
-   * @param {string} username
-   * @returns {boolean}
    */
-  static async checkUserExistsWithUsername(username) {
+  static async checkUserExistsWithUsername(username: string): Promise<boolean> {
     const count = await this.count({
       where: {
         username
@@ -490,19 +428,26 @@ class User extends Model {
     return count > 0
   }
 
-  static mediaProgressRemoved(mediaProgress) {
+  static mediaProgressRemoved(mediaProgress: { id: string; userId: string }): void {
     const cachedUser = userCache.getById(mediaProgress.userId)
     if (cachedUser) {
       Logger.debug(`[User] mediaProgressRemoved: ${mediaProgress.id} from user ${cachedUser.id}`)
-      cachedUser.mediaProgresses = cachedUser.mediaProgresses.filter((mp) => mp.id !== mediaProgress.id)
+      if (cachedUser.mediaProgresses) {
+        cachedUser.mediaProgresses = cachedUser.mediaProgresses.filter((mp) => mp.id !== mediaProgress.id)
+      }
     }
   }
 
   /**
    * Initialize model
-   * @param {import('../Database').sequelize} sequelize
    */
-  static init(sequelize) {
+  static override init(sequelize: Sequelize): typeof User
+  static override init(attributes: unknown, options: unknown): typeof User
+  static override init(sequelizeOrAttributes: unknown, maybeOptions?: unknown): typeof User {
+    if (maybeOptions) {
+      return super.init(sequelizeOrAttributes as never, maybeOptions as never) as unknown as typeof User
+    }
+    const sequelizeInstance = sequelizeOrAttributes as Sequelize
     super.init(
       {
         id: {
@@ -529,10 +474,10 @@ class User extends Model {
         extraData: DataTypes.JSON
       },
       {
-        sequelize,
+        sequelize: sequelizeInstance,
         modelName: 'user',
         hooks: {
-          beforeDestroy(user) {
+          beforeDestroy(user: User) {
             if (user.type === 'root') {
               throw new Error('Root user cannot be deleted')
             }
@@ -540,75 +485,75 @@ class User extends Model {
         }
       }
     )
+    return User
   }
 
-  get isRoot() {
+  get isRoot(): boolean {
     return this.type === 'root'
   }
-  get isAdminOrUp() {
+  get isAdminOrUp(): boolean {
     return this.isRoot || this.type === 'admin'
   }
-  get isUser() {
+  get isUser(): boolean {
     return this.type === 'user'
   }
-  get isGuest() {
+  get isGuest(): boolean {
     return this.type === 'guest'
   }
-  get canAccessExplicitContent() {
+  get canAccessExplicitContent(): boolean {
     return !!this.permissions?.accessExplicitContent && this.isActive
   }
-  get canDelete() {
+  get canDelete(): boolean {
     return !!this.permissions?.delete && this.isActive
   }
-  get canUpdate() {
+  get canUpdate(): boolean {
     return !!this.permissions?.update && this.isActive
   }
-  get canDownload() {
+  get canDownload(): boolean {
     return !!this.permissions?.download && this.isActive
   }
-  get canUpload() {
+  get canUpload(): boolean {
     return !!this.permissions?.upload && this.isActive
   }
-  /** @type {string|null} */
-  get authOpenIDSub() {
-    return this.extraData?.authOpenIDSub || null
+  get authOpenIDSub(): string | null {
+    return (this.extraData?.authOpenIDSub as string | undefined) || null
   }
 
   /**
    * User data for clients
    * Emitted on socket events user_online, user_offline and user_stream_update
-   *
-   * @param {import('../objects/PlaybackSession')[]} sessions
-   * @returns
    */
-  toJSONForPublic(sessions) {
+  toJSONForPublic(sessions?: Array<{ userId: string; toJSONForClient(): unknown }> | null): {
+    id: string
+    username: string
+    type: string
+    session: unknown
+    lastSeen: number | null
+    createdAt: number
+  } {
     const session = sessions?.find((s) => s.userId === this.id)?.toJSONForClient() || null
     return {
       id: this.id,
       username: this.username,
       type: this.type,
       session,
-      lastSeen: this.lastSeen?.valueOf() || null,
+      lastSeen: this.lastSeen ? this.lastSeen.valueOf() : null,
       createdAt: this.createdAt.valueOf()
     }
   }
 
   /**
    * User data for browser using old model
-   *
-   * @param {boolean} [hideRootToken=false]
-   * @param {boolean} [minimal=false]
-   * @returns
    */
-  toOldJSONForBrowser(hideRootToken = false, minimal = false) {
-    const seriesHideFromContinueListening = this.extraData?.seriesHideFromContinueListening || []
-    const librariesAccessible = this.permissions?.librariesAccessible || []
-    const itemTagsSelected = this.permissions?.itemTagsSelected || []
-    const permissions = { ...this.permissions }
+  toOldJSONForBrowser(hideRootToken = false, minimal = false): Record<string, unknown> {
+    const seriesHideFromContinueListening = (this.extraData?.seriesHideFromContinueListening as string[] | undefined) || []
+    const librariesAccessible = (this.permissions?.librariesAccessible || []) as string[]
+    const itemTagsSelected = (this.permissions?.itemTagsSelected || []) as string[]
+    const permissions: Record<string, unknown> = { ...this.permissions }
     delete permissions.librariesAccessible
     delete permissions.itemTagsSelected
 
-    const json = {
+    const json: Record<string, unknown> = {
       id: this.id,
       username: this.username,
       email: this.email,
@@ -623,7 +568,7 @@ class User extends Model {
       bookmarks: this.bookmarks?.map((b) => ({ ...b })) || [],
       isActive: this.isActive,
       isLocked: this.isLocked,
-      lastSeen: this.lastSeen?.valueOf() || null,
+      lastSeen: this.lastSeen ? this.lastSeen.valueOf() : null,
       createdAt: this.createdAt.valueOf(),
       permissions: permissions,
       librariesAccessible: [...librariesAccessible],
@@ -639,28 +584,22 @@ class User extends Model {
 
   /**
    * Check user has access to library
-   *
-   * @param {string} libraryId
-   * @returns {boolean}
    */
-  checkCanAccessLibrary(libraryId) {
+  checkCanAccessLibrary(libraryId: string): boolean {
     if (this.permissions?.accessAllLibraries) return true
     if (!this.permissions?.librariesAccessible) return false
-    return this.permissions.librariesAccessible.includes(libraryId)
+    return (this.permissions.librariesAccessible as string[]).includes(libraryId)
   }
 
   /**
    * Check user has access to library item with tags
-   *
-   * @param {string[]} tags
-   * @returns {boolean}
    */
-  checkCanAccessLibraryItemWithTags(tags) {
-    if (this.permissions.accessAllTags) return true
-    const itemTagsSelected = this.permissions?.itemTagsSelected || []
-    if (this.permissions.selectedTagsNotAccessible) {
+  checkCanAccessLibraryItemWithTags(tags?: string[] | null): boolean {
+    if (this.permissions?.accessAllTags) return true
+    const itemTagsSelected = (this.permissions?.itemTagsSelected || []) as string[]
+    if (this.permissions?.selectedTagsNotAccessible) {
       if (!tags?.length) return true
-      return tags.every((tag) => !itemTagsSelected?.includes(tag))
+      return tags.every((tag) => !itemTagsSelected.includes(tag))
     }
     if (!tags?.length) return false
     return itemTagsSelected.some((tag) => tags.includes(tag))
@@ -668,52 +607,39 @@ class User extends Model {
 
   /**
    * Check user can access library item
-   *
-   * @param {import('./LibraryItem')} libraryItem
-   * @returns {boolean}
    */
-  checkCanAccessLibraryItem(libraryItem) {
+  checkCanAccessLibraryItem(libraryItem: LibraryItem): boolean {
     if (!this.checkCanAccessLibrary(libraryItem.libraryId)) return false
 
-    const libraryItemExplicit = !!libraryItem.media.explicit || !!libraryItem.media.metadata?.explicit
+    const itemMedia = (libraryItem as unknown as { media?: { explicit?: boolean; metadata?: { explicit?: boolean }; tags?: string[] } }).media
+    const libraryItemExplicit = !!itemMedia?.explicit || !!itemMedia?.metadata?.explicit
 
     if (libraryItemExplicit && !this.canAccessExplicitContent) return false
 
-    return this.checkCanAccessLibraryItemWithTags(libraryItem.media.tags)
+    return this.checkCanAccessLibraryItemWithTags(itemMedia?.tags)
   }
 
   /**
    * Get first available library id for user
-   *
-   * @param {string[]} libraryIds
-   * @returns {string|null}
    */
-  getDefaultLibraryId(libraryIds) {
+  getDefaultLibraryId(libraryIds: string[]): string | null {
     // Libraries should already be in ascending display order, find first accessible
     return libraryIds.find((lid) => this.checkCanAccessLibrary(lid)) || null
   }
 
   /**
    * Get media progress by media item id
-   *
-   * @param {string} libraryItemId
-   * @param {string|null} [episodeId]
-   * @returns {import('./MediaProgress')|null}
    */
-  getMediaProgress(mediaItemId) {
+  getMediaProgress(mediaItemId: string): MediaProgress | null {
     if (!this.mediaProgresses?.length) return null
-    return this.mediaProgresses.find((mp) => mp.mediaItemId === mediaItemId)
+    return this.mediaProgresses.find((mp) => mp.mediaItemId === mediaItemId) || null
   }
 
   /**
    * Get old media progress
    * TODO: Update to new model
-   *
-   * @param {string} libraryItemId
-   * @param {string} [episodeId]
-   * @returns
    */
-  getOldMediaProgress(libraryItemId, episodeId = null) {
+  getOldMediaProgress(libraryItemId: string, episodeId: string | null = null): unknown {
     const mediaProgress = this.mediaProgresses?.find((mp) => {
       if (episodeId && mp.mediaItemId !== episodeId) return false
       return mp.extraData?.libraryItemId === libraryItemId
@@ -723,34 +649,34 @@ class User extends Model {
 
   /**
    * TODO: Uses old model and should account for the different between ebook/audiobook progress
-   *
-   * @param {ProgressUpdatePayload} progressPayload
-   * @returns {Promise<{ mediaProgress: import('./MediaProgress'), error: [string], statusCode: [number] }>}
    */
-  async createUpdateMediaProgressFromPayload(progressPayload) {
-    /** @type {import('./MediaProgress')|null} */
-    let mediaProgress = null
-    let mediaItemId = null
-    let podcastId = null
+  async createUpdateMediaProgressFromPayload(
+    progressPayload: ProgressUpdatePayload
+  ): Promise<{ mediaProgress: MediaProgress } | { error: string; statusCode: number }> {
+    let mediaProgress: MediaProgress | null = null
+    let mediaItemId: string | null = null
+    let podcastId: string | null = null
     if (progressPayload.episodeId) {
-      const podcastEpisode = await this.sequelize.models.podcastEpisode.findByPk(progressPayload.episodeId, {
+      const podcastEpisode = (await this.sequelize!.models.podcastEpisode.findByPk(progressPayload.episodeId, {
         attributes: ['id', 'podcastId'],
         include: [
           {
-            model: this.sequelize.models.mediaProgress,
+            model: this.sequelize!.models.mediaProgress,
             where: { userId: this.id },
             required: false
           },
           {
-            model: this.sequelize.models.podcast,
+            model: this.sequelize!.models.podcast,
             attributes: ['id', 'title'],
-            include: {
-              model: this.sequelize.models.libraryItem,
-              attributes: ['id']
-            }
+            include: [
+              {
+                model: this.sequelize!.models.libraryItem,
+                attributes: ['id']
+              }
+            ]
           }
         ]
-      })
+      })) as (PodcastEpisode & { mediaProgresses?: MediaProgress[] }) | null
       if (!podcastEpisode) {
         Logger.error(`[User] createUpdateMediaProgress: episode ${progressPayload.episodeId} not found`)
         return {
@@ -759,22 +685,26 @@ class User extends Model {
         }
       }
       mediaItemId = podcastEpisode.id
-      mediaProgress = podcastEpisode.mediaProgresses?.[0]
+      mediaProgress = podcastEpisode.mediaProgresses?.[0] || null
       podcastId = podcastEpisode.podcastId
     } else {
-      const libraryItem = await this.sequelize.models.libraryItem.findByPk(progressPayload.libraryItemId, {
+      const libraryItem = (await this.sequelize!.models.libraryItem.findByPk(progressPayload.libraryItemId as string, {
         attributes: ['id', 'mediaId', 'mediaType'],
-        include: {
-          model: this.sequelize.models.book,
-          attributes: ['id', 'title'],
-          required: false,
-          include: {
-            model: this.sequelize.models.mediaProgress,
-            where: { userId: this.id },
-            required: false
+        include: [
+          {
+            model: this.sequelize!.models.book,
+            attributes: ['id', 'title'],
+            required: false,
+            include: [
+              {
+                model: this.sequelize!.models.mediaProgress,
+                where: { userId: this.id },
+                required: false
+              }
+            ]
           }
-        }
-      })
+        ]
+      })) as (LibraryItem & { book?: Book & { mediaProgresses?: MediaProgress[] } }) | null
       if (!libraryItem) {
         Logger.error(`[User] createUpdateMediaProgress: library item ${progressPayload.libraryItemId} not found`)
         return {
@@ -789,15 +719,20 @@ class User extends Model {
         }
       }
 
-      mediaItemId = libraryItem.media.id
-      mediaProgress = libraryItem.media.mediaProgresses?.[0]
+      const media = (libraryItem.media || libraryItem.book) as (Book & { mediaProgresses?: MediaProgress[] }) | undefined
+      mediaItemId = media ? media.id : null
+      mediaProgress = media?.mediaProgresses?.[0] || null
+    }
+
+    if (!this.mediaProgresses) {
+      this.mediaProgresses = []
     }
 
     if (mediaProgress) {
       mediaProgress = await mediaProgress.applyProgressUpdate(progressPayload)
-      this.mediaProgresses = this.mediaProgresses.map((mp) => (mp.id === mediaProgress.id ? mediaProgress : mp))
+      this.mediaProgresses = this.mediaProgresses.map((mp) => (mp.id === mediaProgress!.id ? mediaProgress! : mp))
     } else {
-      const newMediaProgressPayload = {
+      const newMediaProgressPayload: Record<string, unknown> = {
         userId: this.id,
         mediaItemId,
         podcastId,
@@ -817,11 +752,11 @@ class User extends Model {
       }
       if (newMediaProgressPayload.isFinished) {
         newMediaProgressPayload.finishedAt = newMediaProgressPayload.finishedAt || new Date()
-        newMediaProgressPayload.extraData.progress = 1
+        ;(newMediaProgressPayload.extraData as { progress: number }).progress = 1
       } else {
         newMediaProgressPayload.finishedAt = null
       }
-      mediaProgress = await this.sequelize.models.mediaProgress.create(newMediaProgressPayload)
+      mediaProgress = (await this.sequelize!.models.mediaProgress.create(newMediaProgressPayload)) as MediaProgress
       this.mediaProgresses.push(mediaProgress)
     }
     userCache.maybeInvalidate(this)
@@ -833,24 +768,16 @@ class User extends Model {
   /**
    * Find bookmark
    * TODO: Bookmarks should use mediaItemId instead of libraryItemId to support podcast episodes
-   *
-   * @param {string} libraryItemId
-   * @param {number} time
-   * @returns {AudioBookmarkObject|null}
    */
-  findBookmark(libraryItemId, time) {
-    return this.bookmarks.find((bm) => bm.libraryItemId === libraryItemId && bm.time == time)
+  findBookmark(libraryItemId: string, time: number): AudioBookmarkObject | null {
+    return this.bookmarks?.find((bm) => bm.libraryItemId === libraryItemId && Number(bm.time) === Number(time)) || null
   }
 
   /**
    * Create bookmark
-   *
-   * @param {string} libraryItemId
-   * @param {number} time
-   * @param {string} title
-   * @returns {Promise<AudioBookmarkObject>}
    */
-  async createBookmark(libraryItemId, time, title) {
+  async createBookmark(libraryItemId: string, time: number, title: string): Promise<AudioBookmarkObject> {
+    if (!this.bookmarks) this.bookmarks = []
     const existingBookmark = this.findBookmark(libraryItemId, time)
     if (existingBookmark) {
       Logger.warn('[User] Create Bookmark already exists for this time')
@@ -862,7 +789,7 @@ class User extends Model {
       return existingBookmark
     }
 
-    const newBookmark = {
+    const newBookmark: AudioBookmarkObject = {
       libraryItemId,
       time,
       title,
@@ -876,13 +803,8 @@ class User extends Model {
 
   /**
    * Update bookmark
-   *
-   * @param {string} libraryItemId
-   * @param {number} time
-   * @param {string} title
-   * @returns {Promise<AudioBookmarkObject>}
    */
-  async updateBookmark(libraryItemId, time, title) {
+  async updateBookmark(libraryItemId: string, time: number, title: string): Promise<AudioBookmarkObject | null> {
     const bookmark = this.findBookmark(libraryItemId, time)
     if (!bookmark) {
       Logger.error(`[User] updateBookmark not found`)
@@ -897,29 +819,22 @@ class User extends Model {
   /**
    * Remove bookmark
    *
-   * @param {string} libraryItemId
-   * @param {number} time
-   * @returns {Promise<boolean>} - true if bookmark was removed
+   * @returns true if bookmark was removed
    */
-  async removeBookmark(libraryItemId, time) {
+  async removeBookmark(libraryItemId: string, time: number): Promise<boolean> {
     if (!this.findBookmark(libraryItemId, time)) {
       Logger.error(`[User] removeBookmark not found`)
       return false
     }
-    this.bookmarks = this.bookmarks.filter((bm) => bm.libraryItemId !== libraryItemId || bm.time !== time)
+    this.bookmarks = (this.bookmarks || []).filter((bm) => bm.libraryItemId !== libraryItemId || Number(bm.time) !== Number(time))
     this.changed('bookmarks', true)
     await this.save()
     return true
   }
 
-  /**
-   *
-   * @param {string} seriesId
-   * @returns {Promise<boolean>}
-   */
-  async addSeriesToHideFromContinueListening(seriesId) {
+  async addSeriesToHideFromContinueListening(seriesId: string): Promise<boolean> {
     if (!this.extraData) this.extraData = {}
-    const seriesHideFromContinueListening = this.extraData.seriesHideFromContinueListening || []
+    const seriesHideFromContinueListening = (this.extraData.seriesHideFromContinueListening as string[] | undefined) || []
     if (seriesHideFromContinueListening.includes(seriesId)) return false
     seriesHideFromContinueListening.push(seriesId)
     this.extraData.seriesHideFromContinueListening = seriesHideFromContinueListening
@@ -928,14 +843,9 @@ class User extends Model {
     return true
   }
 
-  /**
-   *
-   * @param {string} seriesId
-   * @returns {Promise<boolean>}
-   */
-  async removeSeriesFromHideFromContinueListening(seriesId) {
+  async removeSeriesFromHideFromContinueListening(seriesId: string): Promise<boolean> {
     if (!this.extraData) this.extraData = {}
-    let seriesHideFromContinueListening = this.extraData.seriesHideFromContinueListening || []
+    let seriesHideFromContinueListening = (this.extraData.seriesHideFromContinueListening as string[] | undefined) || []
     if (!seriesHideFromContinueListening.includes(seriesId)) return false
     seriesHideFromContinueListening = seriesHideFromContinueListening.filter((sid) => sid !== seriesId)
     this.extraData.seriesHideFromContinueListening = seriesHideFromContinueListening
@@ -947,10 +857,10 @@ class User extends Model {
   /**
    * Update user permissions from external JSON
    *
-   * @param {Object} absPermissions JSON containing user permissions
-   * @returns {Promise<boolean>} true if updates were made
+   * @param absPermissions JSON containing user permissions
+   * @returns true if updates were made
    */
-  async updatePermissionsFromExternalJSON(absPermissions) {
+  async updatePermissionsFromExternalJSON(absPermissions: Record<string, unknown>): Promise<boolean> {
     if (!this.permissions) this.permissions = {}
     let hasUpdates = false
 
@@ -970,32 +880,34 @@ class User extends Model {
     })
 
     // Handle allowedLibraries
-    const librariesAccessible = this.permissions.librariesAccessible || []
+    const librariesAccessible = (this.permissions.librariesAccessible || []) as string[]
+    const allowedLibraries = absPermissions.allowedLibraries as string[] | undefined
     if (this.permissions.accessAllLibraries) {
       if (librariesAccessible.length) {
         this.permissions.librariesAccessible = []
         hasUpdates = true
       }
-    } else if (absPermissions.allowedLibraries?.length && absPermissions.allowedLibraries.join(',') !== librariesAccessible.join(',')) {
-      if (absPermissions.allowedLibraries.some((lid) => typeof lid !== 'string')) {
+    } else if (allowedLibraries?.length && allowedLibraries.join(',') !== librariesAccessible.join(',')) {
+      if (allowedLibraries.some((lid) => typeof lid !== 'string')) {
         throw new Error('Invalid permission property "allowedLibraries", expecting array of strings')
       }
-      this.permissions.librariesAccessible = absPermissions.allowedLibraries
+      this.permissions.librariesAccessible = allowedLibraries
       hasUpdates = true
     }
 
     // Handle allowedTags
-    const itemTagsSelected = this.permissions.itemTagsSelected || []
+    const itemTagsSelected = (this.permissions.itemTagsSelected || []) as string[]
+    const allowedTags = absPermissions.allowedTags as string[] | undefined
     if (this.permissions.accessAllTags) {
       if (itemTagsSelected.length) {
         this.permissions.itemTagsSelected = []
         hasUpdates = true
       }
-    } else if (absPermissions.allowedTags?.length && absPermissions.allowedTags.join(',') !== itemTagsSelected.join(',')) {
-      if (absPermissions.allowedTags.some((tag) => typeof tag !== 'string')) {
+    } else if (allowedTags?.length && allowedTags.join(',') !== itemTagsSelected.join(',')) {
+      if (allowedTags.some((tag) => typeof tag !== 'string')) {
         throw new Error('Invalid permission property "allowedTags", expecting array of strings')
       }
-      this.permissions.itemTagsSelected = absPermissions.allowedTags
+      this.permissions.itemTagsSelected = allowedTags
       hasUpdates = true
     }
 
@@ -1007,20 +919,20 @@ class User extends Model {
     return hasUpdates
   }
 
-  async update(values, options) {
+  override async update(values: Record<string, unknown>, options?: unknown): Promise<this> {
     userCache.maybeInvalidate(this)
-    return await super.update(values, options)
+    return await super.update(values as never, options as never)
   }
 
-  async save(options) {
+  override async save(options?: unknown): Promise<this> {
     userCache.maybeInvalidate(this)
-    return await super.save(options)
+    return await super.save(options as never)
   }
 
-  async destroy(options) {
+  override async destroy(options?: unknown): Promise<void> {
     userCache.delete(this.id)
-    await super.destroy(options)
+    await super.destroy(options as never)
   }
 }
 
-module.exports = User
+export = User
