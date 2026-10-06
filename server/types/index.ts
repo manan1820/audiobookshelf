@@ -429,3 +429,75 @@ export interface LibraryItemFilenameMetadata {
   seriesSequence?: string | null
   publishedYear?: string | null
 }
+
+export interface BookSeriesItem {
+  id: string
+  name: string
+  bookSeries: {
+    sequence: string
+  }
+}
+
+export interface SeriesBookJson {
+  id: string
+  sequence?: string
+  filterSeriesSequence?: string
+  media: {
+    duration?: number | string | null
+    metadata?: Record<string, unknown>
+    [key: string]: unknown
+  }
+  collapsedSeries?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+export interface SeriesGroup {
+  id: string
+  name: string
+  nameIgnorePrefix: string
+  nameIgnorePrefixSort: string
+  type: string
+  books: SeriesBookJson[]
+  totalDuration: number
+}
+
+export interface LibraryItemLike {
+  id: string
+  mediaType?: string
+  media: {
+    id?: string
+    title?: string
+    titleIgnorePrefix?: string
+    duration?: number | string | null
+    series?: BookSeriesItem[]
+    [key: string]: unknown
+  }
+  authorNamesFirstLast?: string | null
+  authorNamesLastFirst?: string | null
+  collapsedSeries?: SeriesGroup
+  toOldJSONMinified(): SeriesBookJson
+  [key: string]: unknown
+}
+
+export interface CollapseSubseriesPayload {
+  sortBy?: string
+  sortDesc?: boolean
+  limit?: number
+  page?: number
+  total?: number
+  [key: string]: unknown
+}
+
+export interface UserLike {
+  checkCanAccessLibraryItem(libraryItem: unknown): boolean
+  [key: string]: unknown
+}
+
+export interface LibraryLike {
+  settings: {
+    hideSingleBookSeries?: boolean
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
