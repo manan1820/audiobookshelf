@@ -1,9 +1,33 @@
-function parseNfoMetadata(nfoText) {
+export interface NfoMetadata {
+  title?: string
+  subtitle?: string
+  authors?: string[]
+  narrators?: string[]
+  series?: string
+  genres?: string[]
+  tags?: string[]
+  publishedYear?: string
+  sequence?: string
+  abridged?: boolean
+  publisher?: string
+  asin?: string
+  isbn?: string
+  language?: string
+  description?: string
+}
+
+export function extractYear(str: string): string | null {
+  const match = str.match(/\d{4}/g)
+  return match && match.length > 0 ? (match[match.length - 1] ?? null) : null
+}
+
+export function parseNfoMetadata(nfoText?: string | null): NfoMetadata | null {
   if (!nfoText) return null
   const lines = nfoText.split(/\r?\n/)
-  const metadata = {}
+  const metadata: NfoMetadata = {}
   let insideBookDescription = false
-  lines.forEach(line => {
+
+  lines.forEach((line) => {
     if (line.search(/^\s*book description\s*$/i) !== -1) {
       insideBookDescription = true
       return
@@ -15,37 +39,36 @@ function parseNfoMetadata(nfoText) {
       return
     }
     const match = line.match(/^(.*?):(.*)$/)
-    if (match) {
+    if (match && match[1] && match[2] !== undefined) {
       const key = match[1].toLowerCase().trim()
       const value = match[2].trim()
       if (!value) return
       switch (key) {
-        case 'title':
-          {
-            const titleMatch = value.match(/^(.*?): (.*)$/)
-            if (titleMatch) {
-              metadata.title = titleMatch[1].trim()
-              metadata.subtitle = titleMatch[2].trim()
-            } else {
-              metadata.title = value
-            }
+        case 'title': {
+          const titleMatch = value.match(/^(.*?): (.*)$/)
+          if (titleMatch && titleMatch[1] && titleMatch[2]) {
+            metadata.title = titleMatch[1].trim()
+            metadata.subtitle = titleMatch[2].trim()
+          } else {
+            metadata.title = value
           }
           break
+        }
         case 'author':
-          metadata.authors = value.split(/\s*,\s*/).filter(v => v)
+          metadata.authors = value.split(/\s*,\s*/).filter((v) => Boolean(v))
           break
         case 'narrator':
         case 'read by':
-          metadata.narrators = value.split(/\s*,\s*/).filter(v => v)
+          metadata.narrators = value.split(/\s*,\s*/).filter((v) => Boolean(v))
           break
         case 'series name':
           metadata.series = value
           break
         case 'genre':
-          metadata.genres = value.split(/\s*,\s*/).filter(v => v)
+          metadata.genres = value.split(/\s*,\s*/).filter((v) => Boolean(v))
           break
         case 'tags':
-          metadata.tags = value.split(/\s*,\s*/).filter(v => v)
+          metadata.tags = value.split(/\s*,\s*/).filter((v) => Boolean(v))
           break
         case 'copyright':
         case 'audible.com release':
@@ -53,14 +76,13 @@ function parseNfoMetadata(nfoText) {
         case 'book copyright':
         case 'recording copyright':
         case 'release date':
-        case 'date':
-          {
-            const year = extractYear(value)
-            if (year) {
-              metadata.publishedYear = year
-            }
+        case 'date': {
+          const year = extractYear(value)
+          if (year) {
+            metadata.publishedYear = year
           }
           break
+        }
         case 'position in series':
           metadata.sequence = value
           break
@@ -89,16 +111,14 @@ function parseNfoMetadata(nfoText) {
     }
   })
 
-  // Trim leading/trailing whitespace for description
   if (metadata.description) {
     metadata.description = metadata.description.trim()
   }
 
   return metadata
 }
-module.exports = { parseNfoMetadata }
 
-function extractYear(str) {
-  const match = str.match(/\d{4}/g)
-  return match ? match[match.length - 1] : null
+export default {
+  parseNfoMetadata,
+  extractYear
 }
