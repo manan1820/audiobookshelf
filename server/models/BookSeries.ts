@@ -1,35 +1,29 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, Model, Sequelize, WhereOptions } from 'sequelize'
 
 class BookSeries extends Model {
-  constructor(values, options) {
-    super(values, options)
+  declare id: string
+  declare sequence: string | null
+  declare bookId: string
+  declare seriesId: string
+  declare createdAt: Date
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {string} */
-    this.sequence
-    /** @type {UUIDV4} */
-    this.bookId
-    /** @type {UUIDV4} */
-    this.seriesId
-    /** @type {Date} */
-    this.createdAt
-  }
-
-  static removeByIds(seriesId = null, bookId = null) {
-    const where = {}
-    if (seriesId) where.seriesId = seriesId
-    if (bookId) where.bookId = bookId
+  static removeByIds(seriesId: string | null = null, bookId: string | null = null): Promise<number> {
+    const where: WhereOptions = {}
+    if (seriesId) (where as Record<string, unknown>).seriesId = seriesId
+    if (bookId) (where as Record<string, unknown>).bookId = bookId
     return this.destroy({
       where
     })
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static override init(sequelize: Sequelize): typeof BookSeries
+  static override init(attributes: unknown, options: unknown): typeof BookSeries
+  static override init(sequelizeOrAttributes: unknown, maybeOptions?: unknown): typeof BookSeries {
+    if (maybeOptions) {
+      return super.init(sequelizeOrAttributes as never, maybeOptions as never) as unknown as typeof BookSeries
+    }
+
+    const sequelize = sequelizeOrAttributes as Sequelize
     super.init(
       {
         id: {
@@ -72,7 +66,9 @@ class BookSeries extends Model {
       onDelete: 'CASCADE'
     })
     BookSeries.belongsTo(series)
+
+    return BookSeries
   }
 }
 
-module.exports = BookSeries
+export = BookSeries
