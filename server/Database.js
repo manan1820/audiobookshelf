@@ -37,122 +37,122 @@ class Database {
     return this.sequelize?.models || {}
   }
 
-  /** @type {typeof import('./models/User')} */
+  /** @type {import('./types/models').DatabaseModels['userModel']} */
   get userModel() {
     return this.models.user
   }
 
-  /** @type {typeof import('./models/Session')} */
+  /** @type {import('./types/models').DatabaseModels['sessionModel']} */
   get sessionModel() {
     return this.models.session
   }
 
-  /** @type {typeof import('./models/ApiKey')} */
+  /** @type {import('./types/models').DatabaseModels['apiKeyModel']} */
   get apiKeyModel() {
     return this.models.apiKey
   }
 
-  /** @type {typeof import('./models/Library')} */
+  /** @type {import('./types/models').DatabaseModels['libraryModel']} */
   get libraryModel() {
     return this.models.library
   }
 
-  /** @type {typeof import('./models/LibraryFolder')} */
+  /** @type {import('./types/models').DatabaseModels['libraryFolderModel']} */
   get libraryFolderModel() {
     return this.models.libraryFolder
   }
 
-  /** @type {typeof import('./models/Author')} */
+  /** @type {import('./types/models').DatabaseModels['authorModel']} */
   get authorModel() {
     return this.models.author
   }
 
-  /** @type {typeof import('./models/Series')} */
+  /** @type {import('./types/models').DatabaseModels['seriesModel']} */
   get seriesModel() {
     return this.models.series
   }
 
-  /** @type {typeof import('./models/Book')} */
+  /** @type {import('./types/models').DatabaseModels['bookModel']} */
   get bookModel() {
     return this.models.book
   }
 
-  /** @type {typeof import('./models/BookSeries')} */
+  /** @type {import('./types/models').DatabaseModels['bookSeriesModel']} */
   get bookSeriesModel() {
     return this.models.bookSeries
   }
 
-  /** @type {typeof import('./models/BookAuthor')} */
+  /** @type {import('./types/models').DatabaseModels['bookAuthorModel']} */
   get bookAuthorModel() {
     return this.models.bookAuthor
   }
 
-  /** @type {typeof import('./models/Podcast')} */
+  /** @type {import('./types/models').DatabaseModels['podcastModel']} */
   get podcastModel() {
     return this.models.podcast
   }
 
-  /** @type {typeof import('./models/PodcastEpisode')} */
+  /** @type {import('./types/models').DatabaseModels['podcastEpisodeModel']} */
   get podcastEpisodeModel() {
     return this.models.podcastEpisode
   }
 
-  /** @type {typeof import('./models/LibraryItem')} */
+  /** @type {import('./types/models').DatabaseModels['libraryItemModel']} */
   get libraryItemModel() {
     return this.models.libraryItem
   }
 
-  /** @type {typeof import('./models/MediaProgress')} */
+  /** @type {import('./types/models').DatabaseModels['mediaProgressModel']} */
   get mediaProgressModel() {
     return this.models.mediaProgress
   }
 
-  /** @type {typeof import('./models/Collection')} */
+  /** @type {import('./types/models').DatabaseModels['collectionModel']} */
   get collectionModel() {
     return this.models.collection
   }
 
-  /** @type {typeof import('./models/CollectionBook')} */
+  /** @type {import('./types/models').DatabaseModels['collectionBookModel']} */
   get collectionBookModel() {
     return this.models.collectionBook
   }
 
-  /** @type {typeof import('./models/Playlist')} */
+  /** @type {import('./types/models').DatabaseModels['playlistModel']} */
   get playlistModel() {
     return this.models.playlist
   }
 
-  /** @type {typeof import('./models/PlaylistMediaItem')} */
+  /** @type {import('./types/models').DatabaseModels['playlistMediaItemModel']} */
   get playlistMediaItemModel() {
     return this.models.playlistMediaItem
   }
 
-  /** @type {typeof import('./models/Feed')} */
+  /** @type {import('./types/models').DatabaseModels['feedModel']} */
   get feedModel() {
     return this.models.feed
   }
 
-  /** @type {typeof import('./models/FeedEpisode')} */
+  /** @type {import('./types/models').DatabaseModels['feedEpisodeModel']} */
   get feedEpisodeModel() {
     return this.models.feedEpisode
   }
 
-  /** @type {typeof import('./models/PlaybackSession')} */
+  /** @type {import('./types/models').DatabaseModels['playbackSessionModel']} */
   get playbackSessionModel() {
     return this.models.playbackSession
   }
 
-  /** @type {typeof import('./models/CustomMetadataProvider')} */
+  /** @type {import('./types/models').DatabaseModels['customMetadataProviderModel']} */
   get customMetadataProviderModel() {
     return this.models.customMetadataProvider
   }
 
-  /** @type {typeof import('./models/MediaItemShare')} */
+  /** @type {import('./types/models').DatabaseModels['mediaItemShareModel']} */
   get mediaItemShareModel() {
     return this.models.mediaItemShare
   }
 
-  /** @type {typeof import('./models/Device')} */
+  /** @type {import('./types/models').DatabaseModels['deviceModel']} */
   get deviceModel() {
     return this.models.device
   }
@@ -444,6 +444,9 @@ class Database {
     return this.models.setting.updateSettingObj(settings.toJSON())
   }
 
+  /**
+   * @param {import('sequelize').WhereOptions} [where]
+   */
   getPlaybackSessions(where = null) {
     if (!this.sequelize) return false
     return this.models.playbackSession.getOldPlaybackSessions(where)

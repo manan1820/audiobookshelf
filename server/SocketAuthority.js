@@ -114,7 +114,7 @@ class SocketAuthority {
    * Note: Emits toOldJSONExpanded()
    *
    * @param {string} evt
-   * @param {import('./models/LibraryItem')[]} libraryItems
+   * @param {import('./models/LibraryItem').default[]} libraryItems
    */
   libraryItemsEmitter(evt, libraryItems) {
     for (const socketId in this.clients) {

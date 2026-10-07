@@ -1,4 +1,4 @@
-import type { ModelStatic, Optional } from 'sequelize'
+import type { Model, ModelStatic, Optional } from 'sequelize'
 import type User from '../models/User'
 import type Session from '../models/Session'
 import type ApiKey from '../models/ApiKey'
@@ -26,35 +26,41 @@ import type CustomMetadataProvider from '../models/CustomMetadataProvider'
 import type MediaItemShare from '../models/MediaItemShare'
 
 /**
+ * Type helper for unmigrated CommonJS models whose static init(sequelize) method
+ * overrides Sequelize's init(attributes, options) with an incompatible signature.
+ */
+export type LegacyModel<M extends Model, S = {}> = ModelStatic<M> & Omit<S, 'init'>
+
+/**
  * Strict Centralized Database Model Registry Interface
  * Exposes all 25 Sequelize models as accessed across Managers and Controllers.
  */
 export interface DatabaseModels {
   userModel: typeof User
-  sessionModel: typeof Session
-  apiKeyModel: typeof ApiKey
+  sessionModel: LegacyModel<Session, typeof Session>
+  apiKeyModel: LegacyModel<ApiKey, typeof ApiKey>
   libraryModel: typeof Library
   libraryFolderModel: typeof LibraryFolder
   bookModel: typeof Book
-  podcastModel: typeof Podcast
-  podcastEpisodeModel: typeof PodcastEpisode
+  podcastModel: LegacyModel<Podcast, typeof Podcast>
+  podcastEpisodeModel: LegacyModel<PodcastEpisode, typeof PodcastEpisode>
   libraryItemModel: typeof LibraryItem
-  mediaProgressModel: typeof MediaProgress
+  mediaProgressModel: LegacyModel<MediaProgress, typeof MediaProgress>
   seriesModel: typeof Series
   bookSeriesModel: typeof BookSeries
   authorModel: typeof Author
   bookAuthorModel: typeof BookAuthor
-  collectionModel: typeof Collection
-  collectionBookModel: typeof CollectionBook
-  playlistModel: typeof Playlist
-  playlistMediaItemModel: typeof PlaylistMediaItem
-  deviceModel: typeof Device
-  playbackSessionModel: typeof PlaybackSession
-  feedModel: typeof Feed
-  feedEpisodeModel: typeof FeedEpisode
-  settingModel: typeof Setting
-  customMetadataProviderModel: typeof CustomMetadataProvider
-  mediaItemShareModel: typeof MediaItemShare
+  collectionModel: LegacyModel<Collection, typeof Collection>
+  collectionBookModel: LegacyModel<CollectionBook, typeof CollectionBook>
+  playlistModel: LegacyModel<Playlist, typeof Playlist>
+  playlistMediaItemModel: LegacyModel<PlaylistMediaItem, typeof PlaylistMediaItem>
+  deviceModel: LegacyModel<Device, typeof Device>
+  playbackSessionModel: LegacyModel<PlaybackSession, typeof PlaybackSession>
+  feedModel: LegacyModel<Feed, typeof Feed>
+  feedEpisodeModel: LegacyModel<FeedEpisode, typeof FeedEpisode>
+  settingModel: LegacyModel<Setting, typeof Setting>
+  customMetadataProviderModel: LegacyModel<CustomMetadataProvider, typeof CustomMetadataProvider>
+  mediaItemShareModel: LegacyModel<MediaItemShare, typeof MediaItemShare>
 }
 
 // -------------------------------------------------------------

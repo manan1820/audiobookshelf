@@ -1,26 +1,18 @@
-const { Request, Response, NextFunction } = require('express')
-const Logger = require('../Logger')
+import type { Request, Response, NextFunction } from 'express'
+import Logger from '../Logger'
+import adminStats from '../utils/queries/adminStats'
+import type User from '../models/User'
 
-const adminStats = require('../utils/queries/adminStats')
-
-/**
- * @typedef RequestUserObject
- * @property {import('../models/User')} user
- *
- * @typedef {Request & RequestUserObject} RequestWithUser
- */
+interface RequestWithUser extends Request {
+  user?: User | null
+}
 
 class StatsController {
-  constructor() {}
-
   /**
    * GET: /api/stats/server
    * Currently not in use
-   *
-   * @param {RequestWithUser} req
-   * @param {Response} res
    */
-  async getServerStats(req, res) {
+  async getServerStats(_req: RequestWithUser, res: Response): Promise<Response | void> {
     Logger.debug('[StatsController] getServerStats')
     const totalSize = await adminStats.getTotalSize()
     const numAudioFiles = await adminStats.getNumAudioFiles()
@@ -43,11 +35,8 @@ class StatsController {
 
   /**
    * GET: /api/stats/year/:year
-   *
-   * @param {RequestWithUser} req
-   * @param {Response} res
    */
-  async getAdminStatsForYear(req, res) {
+  async getAdminStatsForYear(req: RequestWithUser, res: Response): Promise<Response | void> {
     const year = Number(req.params.year)
     if (isNaN(year) || year < 2000 || year > 9999) {
       Logger.error(`[StatsController] Invalid year "${year}"`)
@@ -58,18 +47,28 @@ class StatsController {
   }
 
   /**
-   *
-   * @param {RequestWithUser} req
-   * @param {Response} res
-   * @param {NextFunction} next
+   * Middleware to check admin access
    */
-  async middleware(req, res, next) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[StatsController] Non-admin user "${req.user.username}" attempted to access stats route`)
+  async middleware(
+    req: RequestWithUser,
+    res: Response,
+    next: NextFunction
+  ): Promise<Response | void> {
+    if (!req.user?.isAdminOrUp) {
+      Logger.error(
+        `[StatsController] Non-admin user "${req.user?.username}" attempted to access stats route`
+      )
       return res.sendStatus(403)
     }
 
     next()
   }
 }
-module.exports = new StatsController()
+
+const statsController = new StatsController()
+
+namespace statsController {
+  export type RequestWithUserType = RequestWithUser
+}
+
+export = statsController
