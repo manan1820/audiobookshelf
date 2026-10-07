@@ -42,10 +42,10 @@ export interface DatabaseModels {
   libraryModel: typeof Library
   libraryFolderModel: typeof LibraryFolder
   bookModel: typeof Book
-  podcastModel: LegacyModel<Podcast, typeof Podcast>
-  podcastEpisodeModel: LegacyModel<PodcastEpisode, typeof PodcastEpisode>
+  podcastModel: typeof Podcast
+  podcastEpisodeModel: typeof PodcastEpisode
   libraryItemModel: typeof LibraryItem
-  mediaProgressModel: LegacyModel<MediaProgress, typeof MediaProgress>
+  mediaProgressModel: typeof MediaProgress
   seriesModel: typeof Series
   bookSeriesModel: typeof BookSeries
   authorModel: typeof Author
@@ -55,9 +55,9 @@ export interface DatabaseModels {
   playlistModel: LegacyModel<Playlist, typeof Playlist>
   playlistMediaItemModel: LegacyModel<PlaylistMediaItem, typeof PlaylistMediaItem>
   deviceModel: LegacyModel<Device, typeof Device>
-  playbackSessionModel: LegacyModel<PlaybackSession, typeof PlaybackSession>
-  feedModel: LegacyModel<Feed, typeof Feed>
-  feedEpisodeModel: LegacyModel<FeedEpisode, typeof FeedEpisode>
+  playbackSessionModel: typeof PlaybackSession
+  feedModel: typeof Feed
+  feedEpisodeModel: typeof FeedEpisode
   settingModel: LegacyModel<Setting, typeof Setting>
   customMetadataProviderModel: LegacyModel<CustomMetadataProvider, typeof CustomMetadataProvider>
   mediaItemShareModel: LegacyModel<MediaItemShare, typeof MediaItemShare>
