@@ -4,6 +4,8 @@ export type FsExtraType = typeof nodeFs.promises & {
   createReadStream: typeof nodeFs.createReadStream
   createWriteStream: typeof nodeFs.createWriteStream
   constants: typeof nodeFs.constants
+  readFileSync: typeof nodeFs.readFileSync
+  writeFileSync: typeof nodeFs.writeFileSync
   remove(dir: string): Promise<void>
   removeSync(dir: string): void
   pathExists(path: string): Promise<boolean>

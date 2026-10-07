@@ -564,7 +564,10 @@ export default {
   getAudioMimeTypeFromExtname,
   removeFile,
   encodeUriPath,
-  isWritable,
+  get isWritable(): (dir: string) => Promise<boolean> {
+    const exp = typeof exports !== 'undefined' ? (exports as { isWritable?: (dir: string) => Promise<boolean> }) : null
+    return exp?.isWritable ?? isWritable
+  },
   getWindowsDrives,
   getDirectoriesInPath,
   copyToExisting
