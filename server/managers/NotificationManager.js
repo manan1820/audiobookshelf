@@ -16,8 +16,8 @@ class NotificationManager {
 
   /**
    *
-   * @param {import('../models/LibraryItem')} libraryItem
-   * @param {import('../models/PodcastEpisode')} episode
+   * @param {import('../models/LibraryItem').default} libraryItem
+   * @param {import('../models/PodcastEpisode').default} episode
    */
   async onPodcastEpisodeDownloaded(libraryItem, episode) {
     if (!Database.notificationSettings.isUseable) return

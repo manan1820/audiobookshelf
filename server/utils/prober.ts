@@ -426,6 +426,8 @@ export function rawProbe(filepath: string): Promise<Record<string, unknown> | { 
   })
 }
 
+export { MediaProbeData }
+
 export default {
   probe,
   rawProbe

@@ -91,7 +91,7 @@ export class Feed
   // Expanded properties
   declare feedEpisodes?: NonAttribute<FeedEpisode[]>
   declare user?: NonAttribute<User>
-  declare entity?: NonAttribute<unknown>
+  declare entity?: NonAttribute<LibraryItem | Collection | Series | Record<string, unknown> | null>
   declare libraryItem?: NonAttribute<LibraryItem>
   declare collection?: NonAttribute<unknown>
   declare series?: NonAttribute<unknown>
@@ -118,35 +118,33 @@ export class Feed
 
   static getFeedObjForLibraryItem(
     userId: string,
-    libraryItem: LibraryItem & {
-      media: {
-        coverPath?: string | null
-        updatedAt?: Date
-        title?: string
-        description?: string | null
-        author?: string | null
-        authorName?: string | null
-        podcastType?: string | null
-        language?: string | null
-        explicit?: boolean
-        podcastEpisodes?: Array<{ updatedAt: Date }>
-      }
-      mediaType: string
-    },
+    libraryItem: LibraryItem,
     slug: string,
     serverAddress: string,
     feedOptions?: FeedOptions | null
   ): FeedCreationAttributes {
-    const media = libraryItem.media
+    const media = libraryItem.media as {
+      coverPath?: string | null
+      updatedAt?: Date
+      title?: string
+      description?: string | null
+      author?: string | null
+      authorName?: string | null
+      podcastType?: string | null
+      language?: string | null
+      explicit?: boolean
+      podcastEpisodes?: Array<{ updatedAt: Date }>
+    } | undefined
 
     let entityUpdatedAt: Date | null = libraryItem.updatedAt ?? null
 
-    if (libraryItem.mediaType === 'podcast' && Array.isArray(media.podcastEpisodes)) {
-      entityUpdatedAt = media.podcastEpisodes.reduce((mostRecent, episode) => {
+    if (libraryItem.mediaType === 'podcast' && Array.isArray(media?.podcastEpisodes)) {
+      const episodes = media.podcastEpisodes
+      entityUpdatedAt = episodes.reduce((mostRecent, episode) => {
         if (!mostRecent) return episode.updatedAt
         return episode.updatedAt > mostRecent ? episode.updatedAt : mostRecent
       }, entityUpdatedAt)
-    } else if (media.updatedAt && (!entityUpdatedAt || media.updatedAt > entityUpdatedAt)) {
+    } else if (media?.updatedAt && (!entityUpdatedAt || media.updatedAt > entityUpdatedAt)) {
       entityUpdatedAt = media.updatedAt
     }
 
@@ -157,18 +155,18 @@ export class Feed
       entityUpdatedAt,
       serverAddress,
       feedURL: `/feed/${slug}`,
-      imageURL: Feed.getFeedImageURL(slug, media.coverPath, entityUpdatedAt),
+      imageURL: Feed.getFeedImageURL(slug, media?.coverPath ?? null, entityUpdatedAt),
       siteURL: `/item/${libraryItem.id}`,
-      title: media.title ?? '',
-      description: media.description ?? null,
+      title: media?.title ?? '',
+      description: media?.description ?? null,
       author:
         libraryItem.mediaType === 'podcast'
-          ? (media.author ?? null)
-          : (media.authorName ?? null),
-      podcastType: libraryItem.mediaType === 'podcast' ? (media.podcastType ?? null) : 'serial',
-      language: media.language ?? null,
-      explicit: Boolean(media.explicit),
-      coverPath: media.coverPath ?? null,
+          ? (media?.author ?? null)
+          : (media?.authorName ?? null),
+      podcastType: libraryItem.mediaType === 'podcast' ? (media?.podcastType ?? null) : 'serial',
+      language: media?.language ?? null,
+      explicit: Boolean(media?.explicit),
+      coverPath: media?.coverPath ?? null,
       userId
     }
 
@@ -183,21 +181,7 @@ export class Feed
 
   static async createFeedForLibraryItem(
     userId: string,
-    libraryItem: LibraryItem & {
-      media: {
-        coverPath?: string | null
-        updatedAt?: Date
-        title?: string
-        description?: string | null
-        author?: string | null
-        authorName?: string | null
-        podcastType?: string | null
-        language?: string | null
-        explicit?: boolean
-        podcastEpisodes?: Array<{ updatedAt: Date }>
-      }
-      mediaType: string
-    },
+    libraryItem: LibraryItem,
     slug: string,
     serverAddress: string,
     feedOptions: FeedOptions
@@ -350,30 +334,32 @@ export class Feed
 
   static async createFeedForCollection(
     userId: string,
-    collectionExpanded: {
-      id: string
-      updatedAt?: Date
-      books: Array<
-        Book & {
-          libraryItem: { id: string; libraryId: string; updatedAt?: Date }
-          includedAudioFiles: AudioFileObject[]
+    collectionExpanded:
+      | Collection
+      | {
+          id: string
           updatedAt?: Date
-          coverPath?: string | null
-          authors: Array<{ name: string }>
-          explicit: boolean
-          getTracklist(libraryItemId: string): AudioTrack[]
-        }
-      >
-      name: string
-      description?: string | null
-    },
+          books: Array<
+            Book & {
+              libraryItem: { id: string; libraryId: string; updatedAt?: Date }
+              includedAudioFiles: AudioFileObject[]
+              updatedAt?: Date
+              coverPath?: string | null
+              authors: Array<{ name: string }>
+              explicit: boolean
+              getTracklist(libraryItemId: string): AudioTrack[]
+            }
+          >
+          name: string
+          description?: string | null
+        },
     slug: string,
     serverAddress: string,
     feedOptions: FeedOptions
   ): Promise<Feed | null> {
     const { feedObj, booksWithTracks } = this.getFeedObjForCollection(
       userId,
-      collectionExpanded,
+      collectionExpanded as Parameters<typeof this.getFeedObjForCollection>[1],
       slug,
       serverAddress,
       feedOptions
@@ -511,30 +497,32 @@ export class Feed
 
   static async createFeedForSeries(
     userId: string,
-    seriesExpanded: {
-      id: string
-      updatedAt?: Date
-      books: Array<
-        Book & {
-          libraryItem: { id: string; libraryId: string; updatedAt?: Date }
-          includedAudioFiles: AudioFileObject[]
+    seriesExpanded:
+      | Series
+      | {
+          id: string
           updatedAt?: Date
-          coverPath?: string | null
-          authors: Array<{ name: string }>
-          explicit: boolean
-          getTracklist(libraryItemId: string): AudioTrack[]
-        }
-      >
-      name: string
-      description?: string | null
-    },
+          books: Array<
+            Book & {
+              libraryItem: { id: string; libraryId: string; updatedAt?: Date }
+              includedAudioFiles: AudioFileObject[]
+              updatedAt?: Date
+              coverPath?: string | null
+              authors: Array<{ name: string }>
+              explicit: boolean
+              getTracklist(libraryItemId: string): AudioTrack[]
+            }
+          >
+          name: string
+          description?: string | null
+        },
     slug: string,
     serverAddress: string,
     feedOptions: FeedOptions
   ): Promise<Feed | null> {
     const { feedObj, booksWithTracks } = this.getFeedObjForSeries(
       userId,
-      seriesExpanded,
+      seriesExpanded as Parameters<typeof this.getFeedObjForSeries>[1],
       slug,
       serverAddress,
       feedOptions
@@ -804,6 +792,10 @@ export class Feed
       return Promise.resolve(method.call(this, options))
     }
     return Promise.resolve(null)
+  }
+
+  buildXml(hostPrefix: string): string {
+    return this.buildXML(hostPrefix)
   }
 
   buildXML(hostPrefix: string): string {

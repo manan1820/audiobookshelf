@@ -87,7 +87,7 @@ export class PodcastEpisode
   static async createFromRssPodcastEpisode(
     rssPodcastEpisode: RssPodcastEpisode,
     podcastId: string,
-    audioFile: { toJSON(): AudioFileObject; chapters?: ChapterObject[] }
+    audioFile: { toJSON(): unknown; chapters?: ChapterObject[] }
   ): Promise<PodcastEpisode> {
     const extraData: Record<string, unknown> = {}
     if (rssPodcastEpisode.guid) {
@@ -122,7 +122,7 @@ export class PodcastEpisode
       enclosureType: rssPodcastEpisode.enclosure?.type ?? null,
       publishedAt,
       podcastId,
-      audioFile: audioFile.toJSON(),
+      audioFile: audioFile.toJSON() as AudioFileObject | null,
       chapters,
       extraData
     })

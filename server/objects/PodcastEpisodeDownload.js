@@ -10,7 +10,7 @@ class PodcastEpisodeDownload {
     this.rssPodcastEpisode = null
 
     this.url = null
-    /** @type {import('../models/LibraryItem')} */
+    /** @type {import('../models/LibraryItem').default} */
     this.libraryItem = null
     this.libraryId = null
 
@@ -100,7 +100,7 @@ class PodcastEpisodeDownload {
   /**
    *
    * @param {import('../utils/podcastUtils').RssPodcastEpisode} rssPodcastEpisode - from rss feed
-   * @param {import('../models/LibraryItem')} libraryItem
+   * @param {import('../models/LibraryItem').default} libraryItem
    * @param {*} isAutoDownload
    * @param {*} libraryId
    */

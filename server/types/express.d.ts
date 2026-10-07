@@ -37,6 +37,7 @@ declare global {
       podcastEpisode?: PodcastEpisode | null
       apiKey?: ApiKey | null
       device?: Device | null
+      originalHostPrefix?: string
     }
   }
 }

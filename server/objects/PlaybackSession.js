@@ -80,7 +80,7 @@ class PlaybackSession {
 
   /**
    * Session data to send to clients
-   * @param {import('../models/LibraryItem')} [libraryItem]
+   * @param {import('../models/LibraryItem').default} [libraryItem]
    * @returns
    */
   toJSONForClient(libraryItem) {
@@ -199,7 +199,7 @@ class PlaybackSession {
 
   /**
    *
-   * @param {import('../models/LibraryItem')} libraryItem
+   * @param {import('../models/LibraryItem').default} libraryItem
    * @param {*} userId
    * @param {*} mediaPlayer
    * @param {*} deviceInfo

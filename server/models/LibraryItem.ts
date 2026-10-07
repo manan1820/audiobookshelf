@@ -16,6 +16,7 @@ import libraryFilters from '../utils/queries/libraryFilters'
 import { filePathToPOSIX, getFileTimestampsWithIno } from '../utils/fileUtils'
 import LibraryFile from '../objects/files/LibraryFile'
 import type Book from './Book'
+import type Podcast from './Podcast'
 import type { AudioFileObject, AudioTrack } from './Book'
 import type Library from './Library'
 import type LibraryFolder from './LibraryFolder'
@@ -125,10 +126,11 @@ export class LibraryItem
   declare readonly updatedAt: Date
 
   // Expanded properties
-  declare media?: NonAttribute<Book | Record<string, unknown>>
+  declare media?: NonAttribute<Book | Podcast | Record<string, unknown>>
   declare library?: NonAttribute<Library>
   declare libraryFolder?: NonAttribute<LibraryFolder>
   declare book?: NonAttribute<Book>
+  declare podcast?: NonAttribute<Podcast>
 
   static getLibraryItemsIncrement(
     offset: number,
@@ -243,7 +245,7 @@ export class LibraryItem
             model: podcastEpisode
           }
         ]
-      })) as Record<string, unknown>
+      })) as Podcast
     } else {
       libraryItem.media = (await libraryItem.getMedia({
         include: [
@@ -682,6 +684,7 @@ export class LibraryItem
 
     const mediaExpanded = (this.media || (await this.getMediaExpanded())) as
       | Book
+      | Podcast
       | Record<string, unknown>
 
     let jsonObject: Record<string, unknown> = {}
@@ -885,7 +888,7 @@ export class LibraryItem
           inst.media = inst.book as Book
           inst.dataValues.media = inst.dataValues.book
         } else if (inst.mediaType === 'podcast' && inst.podcast !== undefined) {
-          inst.media = inst.podcast as Record<string, unknown>
+          inst.media = inst.podcast
           inst.dataValues.media = inst.dataValues.podcast
         }
         delete inst.book

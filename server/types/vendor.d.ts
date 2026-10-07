@@ -35,12 +35,13 @@ declare module 'express' {
     header(name: string): string | undefined
   }
 
-  export interface Response extends import('http').ServerResponse {
+  export interface Response extends import('http').ServerResponse, NodeJS.WritableStream {
     status(code: number): this
     sendStatus(code: number): this
     send(body?: unknown): this
     json(body?: unknown): this
     set(field: string | Record<string, string | number | string[] | undefined>, val?: string | number | string[]): this
+    setHeader(name: string, value: number | string | readonly string[]): this
     header(field: string | Record<string, string | number | string[] | undefined>, val?: string | number | string[]): this
     get(field: string): string | undefined
     getHeaders(): Record<string, string | number | string[] | undefined>
