@@ -73,7 +73,7 @@ class PodcastManager {
   async downloadPodcastEpisodes(
     libraryItem: LibraryItem,
     episodesToDownload: RssPodcastEpisode[],
-    isAutoDownload: boolean
+    isAutoDownload: boolean = false
   ): Promise<void> {
     for (const ep of episodesToDownload) {
       const newPeDl = new PodcastEpisodeDownload()
@@ -654,7 +654,7 @@ class PodcastManager {
     rssFeedUrls: string[],
     folder: LibraryFolder,
     autoDownloadEpisodes: boolean,
-    cronManager: PodcastManager.CronManagerInterface
+    cronManager?: PodcastManager.CronManagerInterface
   ): Promise<void> {
     const taskTitleString = {
       text: 'OPML import',
@@ -896,7 +896,7 @@ class PodcastManager {
 
       // Turn on podcast auto download cron if not already on
       if (newLibraryItem.media.autoDownloadEpisodes) {
-        cronManager.checkUpdatePodcastCron(newLibraryItem)
+        cronManager?.checkUpdatePodcastCron(newLibraryItem)
       }
 
       numPodcastsAdded++

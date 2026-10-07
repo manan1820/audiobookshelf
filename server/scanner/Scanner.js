@@ -30,7 +30,7 @@ class Scanner {
   /**
    *
    * @param {import('../routers/ApiRouter')} apiRouterCtx
-   * @param {import('../models/LibraryItem')} libraryItem
+   * @param {import('../models/LibraryItem').default} libraryItem
    * @param {QuickMatchOptions} options
    * @returns {Promise<{updated: boolean, libraryItem: Object}>}
    */
@@ -137,7 +137,7 @@ class Scanner {
 
   /**
    *
-   * @param {import('../models/LibraryItem')} libraryItem
+   * @param {import('../models/LibraryItem').default} libraryItem
    * @param {*} matchData
    * @param {QuickMatchOptions} options
    * @returns {Map<string, any>} - Update payload
@@ -186,7 +186,7 @@ class Scanner {
   /**
    *
    * @param {import('../routers/ApiRouter')} apiRouterCtx
-   * @param {import('../models/LibraryItem')} libraryItem
+   * @param {import('../models/LibraryItem').default} libraryItem
    * @param {*} matchData
    * @param {QuickMatchOptions} options
    * @returns {Promise<{updatePayload: Map<string, any>, seriesIdsRemoved: string[], hasSeriesUpdates: boolean, authorIdsRemoved: string[], hasAuthorUpdates: boolean}>}
@@ -352,12 +352,12 @@ class Scanner {
 
   /**
    *
-   * @param {import('../models/LibraryItem')} libraryItem
+   * @param {import('../models/LibraryItem').default} libraryItem
    * @param {QuickMatchOptions} options
    * @returns {Promise<number>} - Number of episodes updated
    */
   async quickMatchPodcastEpisodes(libraryItem, options = {}) {
-    /** @type {import('../models/PodcastEpisode')[]} */
+    /** @type {import('../models/PodcastEpisode').default[]} */
     const episodesToQuickMatch = libraryItem.media.podcastEpisodes.filter((ep) => !ep.enclosureURL) // Only quick match episodes that are not already matched
     if (!episodesToQuickMatch.length) return 0
 
@@ -383,7 +383,7 @@ class Scanner {
 
   /**
    *
-   * @param {import('../models/PodcastEpisode')} episode
+   * @param {import('../models/PodcastEpisode').default} episode
    * @param {import('../utils/podcastUtils').RssPodcastEpisode} episodeToMatch
    * @param {QuickMatchOptions} options
    * @returns {Promise<boolean>} - true if episode was updated
@@ -427,8 +427,8 @@ class Scanner {
    * Quick match library items
    *
    * @param {import('../routers/ApiRouter')} apiRouterCtx
-   * @param {import('../models/Library')} library
-   * @param {import('../models/LibraryItem')[]} libraryItems
+   * @param {import('../models/Library').default} library
+   * @param {import('../models/LibraryItem').default[]} libraryItems
    * @param {LibraryScan} libraryScan
    * @returns {Promise<boolean>} false if scan canceled
    */
@@ -467,7 +467,7 @@ class Scanner {
    * Quick match all library items for library
    *
    * @param {import('../routers/ApiRouter')} apiRouterCtx
-   * @param {import('../models/Library')} library
+   * @param {import('../models/Library').default} library
    */
   async matchLibraryItems(apiRouterCtx, library) {
     if (library.mediaType === 'podcast') {

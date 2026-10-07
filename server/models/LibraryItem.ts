@@ -292,13 +292,14 @@ export class LibraryItem
     const { podcastEpisode, author, series, bookAuthor } = sequelize.models
 
     if (libraryItem.mediaType === 'podcast') {
-      libraryItem.media = (await libraryItem.getMedia({
-        include: [
-          {
-            model: podcastEpisode
-          }
-        ]
-      })) as Record<string, unknown>
+      libraryItem.media =
+        (await libraryItem.getMedia({
+          include: [
+            {
+              model: podcastEpisode
+            }
+          ]
+        })) ?? undefined
     } else {
       libraryItem.media = (await libraryItem.getMedia({
         include: [
@@ -927,19 +928,19 @@ export class LibraryItem
     return !!mediaObj.hasAudioTracks
   }
 
-  getMedia(options?: FindOptions): Promise<unknown> {
+  getMedia(options?: FindOptions): Promise<Podcast | Book | null> {
     if (!this.mediaType) return Promise.resolve(null)
     const uppercaseFirst = (str: string) => (str ? `${str[0]?.toUpperCase() ?? ''}${str.substring(1)}` : '')
     const mixinMethodName = `get${uppercaseFirst(this.mediaType)}`
     const self = this as Record<string, unknown>
     const method = self[mixinMethodName]
     if (typeof method === 'function') {
-      return (method as (opts?: FindOptions) => Promise<unknown>).call(this, options)
+      return (method as (opts?: FindOptions) => Promise<Podcast | Book | null>).call(this, options)
     }
     return Promise.resolve(null)
   }
 
-  getMediaExpanded(): Promise<unknown> {
+  getMediaExpanded(): Promise<Podcast | Book | null> {
     if (this.mediaType === 'podcast') {
       return this.getMedia({
         include: [
