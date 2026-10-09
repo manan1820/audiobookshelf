@@ -11,69 +11,42 @@ import Series from './Series'
 import { BookSeries } from './BookSeries'
 import type LibraryItem from './LibraryItem'
 import type MediaProgress from './MediaProgress'
+import type {
+  EBookFileObject,
+  ChapterObject,
+  AudioFileObject,
+  AudioTrack,
+  AudioFileMetaTags,
+  BookAuthorMetadataObject,
+  BookSeriesMetadataObject,
+  BookOldMetadataJsonObject,
+  BookOldMetadataMinifiedJsonObject,
+  BookOldMetadataExpandedJsonObject,
+  BookAbsMetadataJsonObject,
+  BookUpdateMetadataPayload,
+  BookUpdateRequestPayload,
+  BookOldJsonObject,
+  BookOldJsonMinifiedObject,
+  BookOldJsonExpandedObject
+} from '../types'
 
-export interface EBookFileObject {
-  ino: string
-  ebookFormat: string
-  addedAt: number
-  updatedAt: number
-  metadata: {
-    filename: string
-    ext: string
-    path: string
-    relPath: string
-    size: number
-    mtimeMs: number
-    ctimeMs: number
-    birthtimeMs: number
-  }
-}
-
-export interface ChapterObject {
-  id: number
-  start: number
-  end: number
-  title: string
-}
-
-export interface AudioFileObject {
-  index: number
-  ino: string
-  metadata: {
-    filename: string
-    ext: string
-    path: string
-    relPath: string
-    size: number
-    mtimeMs: number
-    ctimeMs: number
-    birthtimeMs: number
-  }
-  addedAt: number
-  updatedAt: number
-  trackNumFromMeta?: number
-  discNumFromMeta?: number
-  trackNumFromFilename?: number
-  discNumFromFilename?: number
-  manuallyVerified?: boolean
-  format?: string
-  duration: number
-  bitRate?: number
-  language?: string
-  codec?: string
-  timeBase?: string
-  channels?: number
-  channelLayout?: string
-  chapters?: ChapterObject[]
-  metaTags?: Record<string, unknown>
-  mimeType: string
-  exclude?: boolean
-}
-
-export interface AudioTrack extends AudioFileObject {
-  title: string
-  contentUrl: string
-  startOffset: number
+export type {
+  EBookFileObject,
+  ChapterObject,
+  AudioFileObject,
+  AudioTrack,
+  AudioFileMetaTags,
+  BookAuthorMetadataObject,
+  BookSeriesMetadataObject,
+  BookOldMetadataJsonObject,
+  BookOldMetadataMinifiedJsonObject,
+  BookOldMetadataExpandedJsonObject,
+  BookAbsMetadataJsonObject,
+  BookUpdateMetadataPayload,
+  BookUpdateRequestPayload,
+  BookOldJsonObject,
+  BookOldJsonMinifiedObject,
+  BookOldJsonExpandedObject
 }
 
 export interface SeriesExpandedItem extends Series {
@@ -326,14 +299,14 @@ export class Book
     return total
   }
 
-  getAbsMetadataJson(): Record<string, unknown> {
+  getAbsMetadataJson(): BookAbsMetadataJsonObject {
     return {
       tags: this.tags ?? [],
       chapters: this.chapters?.map((c) => ({ ...c })) ?? [],
       title: this.title,
       subtitle: this.subtitle,
       authors: (this.authors ?? []).map((a) => a.name),
-      narrators: this.narrators,
+      narrators: this.narrators ?? [],
       series: (this.series ?? []).map((se) => {
         const sequence = se.bookSeries?.sequence || ''
         if (!sequence) return se.name
@@ -347,17 +320,17 @@ export class Book
       isbn: this.isbn,
       asin: this.asin,
       language: this.language,
-      explicit: !!this.explicit,
-      abridged: !!this.abridged
+      explicit: Boolean(this.explicit),
+      abridged: Boolean(this.abridged)
     }
   }
 
-  async updateFromRequest(payload?: Record<string, unknown> | null): Promise<boolean> {
+  async updateFromRequest(payload?: BookUpdateRequestPayload | null): Promise<boolean> {
     if (!payload) return false
 
     let hasUpdates = false
 
-    const metadata = payload.metadata as Record<string, unknown> | undefined
+    const metadata = payload.metadata
     if (metadata) {
       const metadataStringKeys: Array<
         | 'title'
@@ -604,7 +577,7 @@ export class Book
     }
   }
 
-  oldMetadataToJSON(): Record<string, unknown> {
+  oldMetadataToJSON(): BookOldMetadataJsonObject {
     const authors = (this.authors ?? []).map((au) => ({ id: au.id, name: au.name }))
     const series = (this.series ?? []).map((se) => ({
       id: se.id,
@@ -630,7 +603,7 @@ export class Book
     }
   }
 
-  oldMetadataToJSONMinified(): Record<string, unknown> {
+  oldMetadataToJSONMinified(): BookOldMetadataMinifiedJsonObject {
     return {
       title: this.title,
       titleIgnorePrefix: getTitlePrefixAtEnd(this.title),
@@ -652,20 +625,21 @@ export class Book
     }
   }
 
-  oldMetadataToJSONExpanded(): Record<string, unknown> {
-    const oldMetadataJSON = this.oldMetadataToJSON()
-    oldMetadataJSON.titleIgnorePrefix = getTitlePrefixAtEnd(this.title)
-    oldMetadataJSON.authorName = this.authorName
-    oldMetadataJSON.authorNameLF = this.authorNameLF
-    oldMetadataJSON.narratorName = (this.narrators ?? []).join(', ')
-    oldMetadataJSON.seriesName = this.seriesName
-    oldMetadataJSON.descriptionPlain = this.description
-      ? htmlSanitizer.stripAllTags(this.description)
-      : null
-    return oldMetadataJSON
+  oldMetadataToJSONExpanded(): BookOldMetadataExpandedJsonObject {
+    return {
+      ...this.oldMetadataToJSON(),
+      titleIgnorePrefix: getTitlePrefixAtEnd(this.title),
+      authorName: this.authorName,
+      authorNameLF: this.authorNameLF,
+      narratorName: (this.narrators ?? []).join(', '),
+      seriesName: this.seriesName,
+      descriptionPlain: this.description
+        ? htmlSanitizer.stripAllTags(this.description)
+        : null
+    }
   }
 
-  toOldJSON(libraryItemId: string): Record<string, unknown> {
+  toOldJSON(libraryItemId: string): BookOldJsonObject {
     if (!libraryItemId) {
       throw new Error(`[Book] Cannot convert to old JSON because libraryItemId is not provided`)
     }
@@ -688,7 +662,7 @@ export class Book
     }
   }
 
-  toOldJSONMinified(): Record<string, unknown> {
+  toOldJSONMinified(): BookOldJsonMinifiedObject {
     if (!this.authors) {
       throw new Error(`[Book] Cannot convert to old JSON because authors are not loaded`)
     }
@@ -710,7 +684,7 @@ export class Book
     }
   }
 
-  toOldJSONExpanded(libraryItemId: string): Record<string, unknown> {
+  toOldJSONExpanded(libraryItemId: string): BookOldJsonExpandedObject {
     if (!libraryItemId) {
       throw new Error(`[Book] Cannot convert to old JSON because libraryItemId is not provided`)
     }

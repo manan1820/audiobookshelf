@@ -3,6 +3,11 @@ import parseNameString from '../utils/parsers/parseNameString'
 import type Library from './Library'
 import type Book from './Book'
 import type LibraryItem from './LibraryItem'
+import type {
+  AuthorOldJsonObject,
+  AuthorOldJsonExpandedObject,
+  AuthorMinimalJsonObject
+} from '../types'
 
 export interface AuthorAttributes {
   id: string
@@ -157,7 +162,7 @@ export class Author
     return Author
   }
 
-  toOldJSON(): Record<string, unknown> {
+  toOldJSON(): AuthorOldJsonObject {
     return {
       id: this.id,
       asin: this.asin,
@@ -170,13 +175,14 @@ export class Author
     }
   }
 
-  toOldJSONExpanded(numBooks = 0): Record<string, unknown> {
-    const oldJson = this.toOldJSON()
-    oldJson.numBooks = numBooks
-    return oldJson
+  toOldJSONExpanded(numBooks = 0): AuthorOldJsonExpandedObject {
+    return {
+      ...this.toOldJSON(),
+      numBooks
+    }
   }
 
-  toJSONMinimal(): Record<string, unknown> {
+  toJSONMinimal(): AuthorMinimalJsonObject {
     return {
       id: this.id,
       name: this.name

@@ -2,6 +2,7 @@ import { DataTypes, Model, where, fn, col, literal, Sequelize, NonAttribute, Opt
 import { getTitlePrefixAtEnd, getTitleIgnorePrefix } from '../utils'
 import type Book from './Book'
 import type Library from './Library'
+import type { SeriesOldJsonObject, SeriesMinimalJsonObject } from '../types'
 
 export interface SeriesAttributes {
   id: string
@@ -156,7 +157,7 @@ export class Series
     })
   }
 
-  toOldJSON(): Record<string, unknown> {
+  toOldJSON(): SeriesOldJsonObject {
     return {
       id: this.id,
       name: this.name,
@@ -168,7 +169,7 @@ export class Series
     }
   }
 
-  toJSONMinimal(sequence?: string | null): Record<string, unknown> {
+  toJSONMinimal(sequence?: string | null): SeriesMinimalJsonObject {
     return {
       id: this.id,
       name: this.name,

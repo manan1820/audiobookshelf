@@ -1,22 +1,13 @@
 import { DataTypes, Model, Sequelize, NonAttribute, Optional } from 'sequelize'
 import Logger from '../Logger'
 import type LibraryFolder from './LibraryFolder'
+import type {
+  LibrarySettingsObject,
+  LibraryExtraData,
+  LibraryOldJsonObject
+} from '../types'
 
-export interface LibrarySettingsObject {
-  coverAspectRatio: number
-  disableWatcher: boolean
-  skipMatchingMediaWithAsin?: boolean
-  skipMatchingMediaWithIsbn?: boolean
-  autoScanCronExpression?: string | null
-  audiobooksOnly?: boolean
-  epubsAllowScriptedContent?: boolean
-  hideSingleBookSeries?: boolean
-  onlyShowLaterBooksInContinueSeries?: boolean
-  metadataPrecedence?: string[]
-  podcastSearchRegion?: string
-  markAsFinishedTimeRemaining?: number
-  markAsFinishedPercentComplete?: number | null
-}
+export type { LibrarySettingsObject, LibraryExtraData, LibraryOldJsonObject }
 
 export interface LibraryAttributes {
   id: string
@@ -28,7 +19,7 @@ export interface LibraryAttributes {
   lastScan?: Date | null
   lastScanVersion?: string | null
   settings?: LibrarySettingsObject | null
-  extraData?: Record<string, unknown> | null
+  extraData?: LibraryExtraData | null
   createdAt?: Date
   updatedAt?: Date
 }
@@ -49,7 +40,7 @@ export class Library
   declare lastScan: Date | null
   declare lastScanVersion: string | null
   declare settings: LibrarySettingsObject | null
-  declare extraData: Record<string, unknown> | null
+  declare extraData: LibraryExtraData | null
   declare readonly createdAt: Date
   declare readonly updatedAt: Date
 
@@ -178,7 +169,7 @@ export class Library
     return this.settings ?? Library.getDefaultLibrarySettingsForMediaType(this.mediaType)
   }
 
-  toOldJSON(): Record<string, unknown> {
+  toOldJSON(): LibraryOldJsonObject {
     return {
       id: this.id,
       name: this.name,

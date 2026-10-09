@@ -17,13 +17,25 @@ import SocketAuthority from '../SocketAuthority'
 import { isNullOrNaN } from '../utils'
 import TokenManager from '../auth/TokenManager'
 import type MediaProgress from './MediaProgress'
+import type { MediaProgressCreationAttributes } from './MediaProgress'
 import type LibraryItem from './LibraryItem'
+import type {
+  AudioBookmarkObject,
+  UserPermissionsObject,
+  AbsExternalPermissionsObject,
+  UserPublicJsonObject,
+  UserOldJsonForBrowserObject,
+  UserExtraData as DTOUserExtraData,
+  MediaProgressExtraData
+} from '../types'
 
-export interface AudioBookmarkObject {
-  libraryItemId: string
-  title: string
-  time: number
-  createdAt: number
+export type {
+  AudioBookmarkObject,
+  UserPermissionsObject,
+  AbsExternalPermissionsObject,
+  UserPublicJsonObject,
+  UserOldJsonForBrowserObject,
+  MediaProgressExtraData
 }
 
 export interface ProgressUpdatePayload {
@@ -43,27 +55,9 @@ export interface ProgressUpdatePayload {
   createdAt?: Date | null
 }
 
-export interface UserExtraData {
-  oldUserId?: string
-  authOpenIDSub?: string
-  seriesHideFromContinueListening?: string[]
-  [key: string]: unknown
-}
+export interface UserExtraData extends DTOUserExtraData {}
 
-export interface UserPermissions {
-  download?: boolean
-  update?: boolean
-  delete?: boolean
-  upload?: boolean
-  accessExplicitContent?: boolean
-  accessAllLibraries?: boolean
-  accessAllTags?: boolean
-  createEreader?: boolean
-  selectedTagsNotAccessible?: boolean
-  librariesAccessible?: string[]
-  itemTagsSelected?: string[]
-  [key: string]: unknown
-}
+export interface UserPermissions extends UserPermissionsObject {}
 
 export interface OpenIdUserInfo {
   sub: string
@@ -72,7 +66,6 @@ export interface OpenIdUserInfo {
   preferred_username?: string
   username?: string
   name?: string
-  [key: string]: unknown
 }
 
 class UserCache {
@@ -197,19 +190,22 @@ export class User
   }
 
   static getSampleAbsPermissions(): string {
-    const samplePermissions = Object.keys(User.permissionMapping).reduce(
-      (acc: Record<string, unknown>, key) => {
-        if (key === 'allowedLibraries') {
-          acc[key] = ['5406ba8a-16e1-451d-96d7-4931b0a0d966', '918fd848-7c1d-4a02-818a-847435a879ca']
-        } else if (key === 'allowedTags') {
-          acc[key] = ['ExampleTag', 'AnotherTag', 'ThirdTag']
-        } else {
-          acc[key] = false
-        }
-        return acc
-      },
-      {}
-    )
+    const samplePermissions: AbsExternalPermissionsObject = {
+      canDownload: false,
+      canUpdate: false,
+      canDelete: false,
+      canUpload: false,
+      canAccessExplicitContent: false,
+      canAccessAllLibraries: false,
+      canAccessAllTags: false,
+      canCreateEReader: false,
+      tagsAreDenylist: false,
+      allowedLibraries: [
+        '5406ba8a-16e1-451d-96d7-4931b0a0d966',
+        '918fd848-7c1d-4a02-818a-847435a879ca'
+      ],
+      allowedTags: ['ExampleTag', 'AnotherTag', 'ThirdTag']
+    }
     return JSON.stringify(samplePermissions, null, 2)
   }
 
@@ -557,7 +553,7 @@ export class User
 
   toJSONForPublic(
     sessions?: Array<{ userId: string; toJSONForClient: () => unknown }>
-  ): Record<string, unknown> {
+  ): UserPublicJsonObject {
     const session = sessions?.find((s) => s.userId === this.id)?.toJSONForClient() ?? null
     return {
       id: this.id,
@@ -569,21 +565,21 @@ export class User
     }
   }
 
-  toOldJSONForBrowser(hideRootToken = false, minimal = false): Record<string, unknown> {
+  toOldJSONForBrowser(hideRootToken = false, minimal = false): UserOldJsonForBrowserObject {
     const seriesHideFromContinueListening = this.extraData?.seriesHideFromContinueListening ?? []
     const librariesAccessible = this.permissions?.librariesAccessible ?? []
     const itemTagsSelected = this.permissions?.itemTagsSelected ?? []
-    const permissions: Record<string, unknown> = { ...this.permissions }
+    const permissions: UserPermissionsObject = { ...this.permissions }
     delete permissions.librariesAccessible
     delete permissions.itemTagsSelected
 
-    const json: Record<string, unknown> = {
+    const json: UserOldJsonForBrowserObject = {
       id: this.id,
       username: this.username,
       email: this.email,
       type: this.type,
       token: this.type === 'root' && hideRootToken ? '' : this.token,
-      isOldToken: this.isOldToken,
+      isOldToken: Boolean(this.isOldToken),
       mediaProgress: this.mediaProgresses?.map((mp) => (mp as { getOldMediaProgress: () => unknown }).getOldMediaProgress()) ?? [],
       seriesHideFromContinueListening: [...seriesHideFromContinueListening],
       bookmarks: this.bookmarks?.map((b) => ({ ...b })) ?? [],
@@ -594,7 +590,7 @@ export class User
       permissions,
       librariesAccessible: [...librariesAccessible],
       itemTagsSelected: [...itemTagsSelected],
-      hasOpenIDLink: !!this.authOpenIDSub
+      hasOpenIDLink: Boolean(this.authOpenIDSub)
     }
     if (minimal) {
       delete json.mediaProgress
@@ -766,7 +762,17 @@ export class User
         )
       }
     } else {
-      const newMediaProgressPayload: Record<string, unknown> = {
+      const extraData: MediaProgressExtraData = {
+        libraryItemId: progressPayload.libraryItemId,
+        progress: isNullOrNaN(progressPayload.progress) ? 0 : Number(progressPayload.progress)
+      }
+      let finishedAt: Date | null = null
+      if (progressPayload.isFinished) {
+        finishedAt = progressPayload.finishedAt ? new Date(progressPayload.finishedAt) : new Date()
+        extraData.progress = 1
+      }
+
+      const newMediaProgressPayload: MediaProgressCreationAttributes = {
         userId: this.id,
         mediaItemId,
         podcastId,
@@ -781,22 +787,15 @@ export class User
         ebookProgress: isNullOrNaN(progressPayload.ebookProgress)
           ? 0
           : Number(progressPayload.ebookProgress),
-        finishedAt: progressPayload.finishedAt || null,
+        finishedAt,
         createdAt: progressPayload.createdAt || new Date(),
         extraData: {
-          libraryItemId: progressPayload.libraryItemId,
-          progress: isNullOrNaN(progressPayload.progress) ? 0 : Number(progressPayload.progress)
+          libraryItemId: extraData.libraryItemId,
+          progress: extraData.progress
         }
       }
-      if (newMediaProgressPayload.isFinished) {
-        newMediaProgressPayload.finishedAt = newMediaProgressPayload.finishedAt || new Date()
-        const extra = newMediaProgressPayload.extraData as Record<string, unknown>
-        extra.progress = 1
-      } else {
-        newMediaProgressPayload.finishedAt = null
-      }
       const mediaProgressModel = this.sequelize.models.mediaProgress as {
-        create: (payload: Record<string, unknown>) => Promise<MediaProgress>
+        create: (payload: MediaProgressCreationAttributes) => Promise<MediaProgress>
       }
       mediaProgress = await mediaProgressModel.create(newMediaProgressPayload)
       if (!this.mediaProgresses) {
@@ -901,7 +900,7 @@ export class User
   }
 
   async updatePermissionsFromExternalJSON(
-    absPermissions: Record<string, unknown>
+    absPermissions: AbsExternalPermissionsObject
   ): Promise<boolean> {
     if (!this.permissions) this.permissions = {}
     let hasUpdates = false
@@ -913,11 +912,16 @@ export class User
       }
 
       if (!['librariesAccessible', 'itemTagsSelected'].includes(userPermKey)) {
-        const currentVal = this.permissions?.[userPermKey]
-        const newVal = !!absPermissions[absKey]
+        const booleanPermKey = userPermKey as keyof Omit<
+          UserPermissionsObject,
+          'librariesAccessible' | 'itemTagsSelected'
+        >
+        const currentVal = this.permissions?.[booleanPermKey]
+        const rawVal = absPermissions[absKey as keyof AbsExternalPermissionsObject]
+        const newVal = !!rawVal
         if (currentVal !== newVal) {
           if (this.permissions) {
-            this.permissions[userPermKey] = newVal
+            this.permissions[booleanPermKey] = newVal
           }
           hasUpdates = true
         }
@@ -937,7 +941,7 @@ export class User
       if (absPermissions.allowedLibraries.some((lid) => typeof lid !== 'string')) {
         throw new Error('Invalid permission property "allowedLibraries", expecting array of strings')
       }
-      this.permissions.librariesAccessible = absPermissions.allowedLibraries as string[]
+      this.permissions.librariesAccessible = absPermissions.allowedLibraries
       hasUpdates = true
     }
 
@@ -954,7 +958,7 @@ export class User
       if (absPermissions.allowedTags.some((tag) => typeof tag !== 'string')) {
         throw new Error('Invalid permission property "allowedTags", expecting array of strings')
       }
-      this.permissions.itemTagsSelected = absPermissions.allowedTags as string[]
+      this.permissions.itemTagsSelected = absPermissions.allowedTags
       hasUpdates = true
     }
 

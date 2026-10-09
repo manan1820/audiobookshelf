@@ -1,5 +1,6 @@
 import { DataTypes, Model, Sequelize, NonAttribute, Optional } from 'sequelize'
 import type Library from './Library'
+import type { LibraryFolderOldJsonObject } from '../types'
 
 export interface LibraryFolderAttributes {
   id: string
@@ -52,7 +53,7 @@ export class LibraryFolder
     return LibraryFolder
   }
 
-  toOldJSON(): Record<string, unknown> {
+  toOldJSON(): LibraryFolderOldJsonObject {
     return {
       id: this.id,
       fullPath: this.path,

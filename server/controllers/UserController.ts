@@ -7,6 +7,7 @@ import Database from '../Database'
 import { toNumber } from '../utils/index'
 import type User from '../models/User'
 import type { UserPermissions } from '../models/User'
+import type { UserPermissionsObject, UserOldJsonForBrowserObject } from '../types'
 import type MediaProgress from '../models/MediaProgress'
 
 interface RequestWithUser extends Request {
@@ -48,9 +49,9 @@ class UserController {
     const includes = includeQuery.split(',').map((i) => i.trim())
 
     const allUsers = await Database.userModel.findAll()
-    const users = allUsers.map((u) =>
+    const users: UserOldJsonForBrowserObject[] = allUsers.map((u) =>
       u.toOldJSONForBrowser(hideRootToken, true)
-    ) as Array<Record<string, unknown> & { id: string; latestSession?: unknown }>
+    )
 
     if (includes.includes('latestSession')) {
       for (const user of users) {
@@ -166,9 +167,9 @@ class UserController {
       : ''
     const userType = reqType || 'user'
 
-    const bodyPermissions = (body.permissions as Record<string, unknown>) ?? {}
-    let reqLibrariesAccessible =
-      body.librariesAccessible ?? bodyPermissions.librariesAccessible
+    const bodyPermissions = (body.permissions as UserPermissionsObject) ?? {}
+    let reqLibrariesAccessible: unknown[] | null =
+      (body.librariesAccessible as unknown[] | undefined) ?? bodyPermissions.librariesAccessible ?? null
     if (
       reqLibrariesAccessible &&
       (!Array.isArray(reqLibrariesAccessible) ||
@@ -180,7 +181,8 @@ class UserController {
       reqLibrariesAccessible = null
     }
 
-    let reqItemTagsSelected = body.itemTagsSelected ?? bodyPermissions.itemTagsSelected
+    let reqItemTagsSelected: unknown[] | null =
+      (body.itemTagsSelected as unknown[] | undefined) ?? bodyPermissions.itemTagsSelected ?? null
     if (
       reqItemTagsSelected &&
       (!Array.isArray(reqItemTagsSelected) ||
@@ -200,14 +202,15 @@ class UserController {
     const permissions: UserPermissions =
       Database.userModel.getDefaultPermissionsForUserType(userType)
     if (typeof body.permissions === 'object' && body.permissions !== null) {
-      for (const key in bodyPermissions) {
+      for (const key of Object.keys(bodyPermissions) as Array<keyof UserPermissionsObject>) {
         if (permissions[key] !== undefined) {
-          if (typeof bodyPermissions[key] !== 'boolean') {
+          const val = bodyPermissions[key]
+          if (typeof val !== 'boolean') {
             Logger.warn(
               `[UserController] create: Invalid permission value for key ${key}. Should be boolean`
             )
-          } else {
-            permissions[key] = bodyPermissions[key]
+          } else if (key !== 'librariesAccessible' && key !== 'itemTagsSelected') {
+            permissions[key] = val
           }
         } else {
           Logger.warn(`[UserController] create: Invalid permission key: ${key}`)
@@ -323,10 +326,10 @@ class UserController {
 
     let hasPermissionsUpdates = false
     const updatePermissions =
-      (updatePayload.permissions as Record<string, unknown>) ?? null
+      (updatePayload.permissions as UserPermissionsObject | null) ?? null
 
-    let updateLibrariesAccessible =
-      updatePayload.librariesAccessible ?? updatePermissions?.librariesAccessible
+    let updateLibrariesAccessible: unknown[] | null =
+      (updatePayload.librariesAccessible as unknown[] | undefined) ?? updatePermissions?.librariesAccessible ?? null
     if (
       updateLibrariesAccessible &&
       (!Array.isArray(updateLibrariesAccessible) ||
@@ -338,8 +341,8 @@ class UserController {
       updateLibrariesAccessible = null
     }
 
-    let updateItemTagsSelected =
-      updatePayload.itemTagsSelected ?? updatePermissions?.itemTagsSelected
+    let updateItemTagsSelected: unknown[] | null =
+      (updatePayload.itemTagsSelected as unknown[] | undefined) ?? updatePermissions?.itemTagsSelected ?? null
     if (
       updateItemTagsSelected &&
       (!Array.isArray(updateItemTagsSelected) ||
@@ -367,15 +370,18 @@ class UserController {
       const defaultPermissions: UserPermissions =
         Database.userModel.getDefaultPermissionsForUserType(targetType)
 
-      for (const key in updatePermissions) {
+      for (const key of Object.keys(updatePermissions) as Array<keyof UserPermissionsObject>) {
         if (permissions[key] !== undefined || defaultPermissions[key] !== undefined) {
-          if (typeof updatePermissions[key] !== 'boolean') {
+          const val = updatePermissions[key]
+          if (typeof val !== 'boolean') {
             Logger.warn(
               `[UserController] update: Invalid permission value for key ${key}. Should be boolean`
             )
-          } else if (permissions[key] !== updatePermissions[key]) {
-            permissions[key] = updatePermissions[key]
-            hasPermissionsUpdates = true
+          } else if (key !== 'librariesAccessible' && key !== 'itemTagsSelected') {
+            if (permissions[key] !== val) {
+              permissions[key] = val
+              hasPermissionsUpdates = true
+            }
           }
         } else {
           Logger.warn(`[UserController] update: Invalid permission key: ${key}`)

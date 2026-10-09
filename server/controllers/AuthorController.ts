@@ -12,6 +12,7 @@ import AuthorFinder from '../finders/AuthorFinder'
 
 import { reqSupportsWebp, isValidASIN, clampPositiveInt } from '../utils/index'
 import type Author from '../models/Author'
+import type { AuthorOldJsonObject } from '../types'
 import type User from '../models/User'
 import type LibraryItem from '../models/LibraryItem'
 
@@ -42,7 +43,12 @@ class AuthorController {
     const includeQuery = typeof req.query.include === 'string' ? req.query.include : ''
     const include = includeQuery.split(',')
 
-    const authorJson = req.author.toOldJSON() as Record<string, unknown>
+    const authorJson: AuthorOldJsonObject & {
+      series?: SeriesMapItem[]
+      libraryItems?: unknown[]
+    } = {
+      ...req.author.toOldJSON()
+    }
 
     if (include.includes('items')) {
       const libraryItems = await Database.libraryItemModel.getForAuthor(req.author, req.user)
