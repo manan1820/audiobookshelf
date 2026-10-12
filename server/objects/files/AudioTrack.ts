@@ -1,16 +1,18 @@
-class AudioTrack {
-  constructor() {
-    this.index = null
-    this.startOffset = null
-    this.duration = null
-    this.title = null
-    this.contentUrl = null
-    this.mimeType = null
-    this.codec = null
-    this.metadata = null
-  }
+import FileMetadata from '../metadata/FileMetadata'
+import type AudioFile from './AudioFile'
+import type { AudioTrackJsonObject } from '../../types'
 
-  toJSON() {
+class AudioTrack {
+  index: number | null = null
+  startOffset: number | null = null
+  duration: number | null = null
+  title: string | null = null
+  contentUrl: string | null = null
+  mimeType: string | null = null
+  codec: string | null = null
+  metadata: FileMetadata | null = null
+
+  toJSON(): AudioTrackJsonObject {
     return {
       index: this.index,
       startOffset: this.startOffset,
@@ -23,7 +25,7 @@ class AudioTrack {
     }
   }
 
-  setData(itemId, audioFile, startOffset) {
+  setData(itemId: string, audioFile: AudioFile, startOffset: number): void {
     this.index = audioFile.index
     this.startOffset = startOffset
     this.duration = audioFile.duration
@@ -35,7 +37,7 @@ class AudioTrack {
     this.metadata = audioFile.metadata.clone()
   }
 
-  setFromStream(title, duration, contentUrl) {
+  setFromStream(title: string, duration: number, contentUrl: string): void {
     this.index = 1
     this.startOffset = 0
     this.duration = duration
@@ -44,4 +46,5 @@ class AudioTrack {
     this.mimeType = 'application/vnd.apple.mpegurl'
   }
 }
-module.exports = AudioTrack
+
+export = AudioTrack

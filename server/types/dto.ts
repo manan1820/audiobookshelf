@@ -130,23 +130,25 @@ export interface AudioFileObject {
   }
   addedAt: number
   updatedAt: number
-  trackNumFromMeta?: number
-  discNumFromMeta?: number
-  trackNumFromFilename?: number
-  discNumFromFilename?: number
+  trackNumFromMeta?: number | string | null
+  discNumFromMeta?: number | string | null
+  trackNumFromFilename?: number | string | null
+  discNumFromFilename?: number | string | null
   manuallyVerified?: boolean
   format?: string
   duration: number
   bitRate?: number
-  language?: string
+  language?: string | null
   codec?: string
   timeBase?: string
   channels?: number
   channelLayout?: string
   chapters?: ChapterObject[]
+  embeddedCoverArt?: string | null
   metaTags?: AudioFileMetaTags | null
   mimeType: string
   exclude?: boolean
+  error?: string | null
 }
 
 export interface AudioTrack extends AudioFileObject {
@@ -173,24 +175,24 @@ export interface EBookFileObject {
 }
 
 export interface AudioFileMetaTags {
-  tagAlbum?: string
-  tagArtist?: string
-  tagGenre?: string
-  tagTitle?: string
-  tagSeries?: string
-  tagSeriesPart?: string
-  tagTrack?: string
-  tagDisc?: string
-  tagSubtitle?: string
-  tagYear?: string
-  tagComposer?: string
-  tagPublisher?: string
-  tagComment?: string
-  tagDescription?: string
-  tagEncoder?: string
-  tagLanguage?: string
-  tagAsin?: string
-  tagOverdriveMediaMarker?: string
+  tagAlbum?: string | null
+  tagArtist?: string | null
+  tagGenre?: string | null
+  tagTitle?: string | null
+  tagSeries?: string | null
+  tagSeriesPart?: string | null
+  tagTrack?: string | null
+  tagDisc?: string | null
+  tagSubtitle?: string | null
+  tagYear?: string | null
+  tagComposer?: string | null
+  tagPublisher?: string | null
+  tagComment?: string | null
+  tagDescription?: string | null
+  tagEncoder?: string | null
+  tagLanguage?: string | null
+  tagAsin?: string | null
+  tagOverdriveMediaMarker?: string | null
   [key: string]: string | number | boolean | null | undefined
 }
 
@@ -569,30 +571,7 @@ export interface PlaybackSessionExtraData {
   libraryItemId?: string | null
 }
 
-export interface PlaybackSessionMediaMetadata {
-  title?: string | null
-  subtitle?: string | null
-  author?: string | null
-  authors?: BookAuthorMetadataObject[]
-  narrators?: string[]
-  series?: BookSeriesMetadataObject[]
-  genres?: string[]
-  publishedYear?: string | null
-  publishedDate?: string | null
-  publisher?: string | null
-  description?: string | null
-  isbn?: string | null
-  asin?: string | null
-  language?: string | null
-  explicit?: boolean
-  abridged?: boolean
-  feedUrl?: string | null
-  imageUrl?: string | null
-  itunesPageUrl?: string | null
-  itunesId?: string | null
-  itunesArtistId?: string | null
-  type?: string | null
-}
+export type PlaybackSessionMediaMetadata = BookOldMetadataJsonObject | PodcastOldMetadataJsonObject
 
 export interface PlaybackSessionOldJsonObject {
   id: string
@@ -622,7 +601,7 @@ export interface PlaybackSessionOldJsonObject {
 }
 
 export interface PlaybackSessionForClientObject extends PlaybackSessionOldJsonObject {
-  audioTracks: AudioTrack[]
+  audioTracks: (AudioTrack | import('./objects').AudioTrackJsonObject)[]
   libraryItem: LibraryItemOldJsonExpandedObject | null
   coverAspectRatio?: number
 }

@@ -1,70 +1,111 @@
-class AudioMetaTags {
-  constructor(metadata) {
-    this.tagAlbum = null
-    this.tagAlbumSort = null
-    this.tagArtist = null
-    this.tagArtistSort = null
-    this.tagGenre = null
-    this.tagTitle = null
-    this.tagTitleSort = null
-    this.tagSeries = null
-    this.tagSeriesPart = null
-    this.tagGrouping = null
-    this.tagTrack = null
-    this.tagDisc = null
-    this.tagSubtitle = null
-    this.tagAlbumArtist = null
-    this.tagDate = null
-    this.tagComposer = null
-    this.tagPublisher = null
-    this.tagComment = null
-    this.tagDescription = null
-    this.tagEncoder = null
-    this.tagEncodedBy = null
-    this.tagIsbn = null
-    this.tagLanguage = null
-    this.tagASIN = null
-    this.tagItunesId = null
-    this.tagPodcastType = null
-    this.tagEpisodeType = null
-    this.tagOverdriveMediaMarker = null
-    this.tagOriginalYear = null
-    this.tagReleaseCountry = null
-    this.tagReleaseType = null
-    this.tagReleaseStatus = null
-    this.tagISRC = null
-    this.tagMusicBrainzTrackId = null
-    this.tagMusicBrainzAlbumId = null
-    this.tagMusicBrainzAlbumArtistId = null
-    this.tagMusicBrainzArtistId = null
+import type { AudioMetaTagsJsonObject, AudioMetaTagsProbePayload } from '../../types'
 
+const TAG_KEYS = [
+  'tagAlbum',
+  'tagAlbumSort',
+  'tagArtist',
+  'tagArtistSort',
+  'tagGenre',
+  'tagTitle',
+  'tagTitleSort',
+  'tagSeries',
+  'tagSeriesPart',
+  'tagGrouping',
+  'tagTrack',
+  'tagDisc',
+  'tagSubtitle',
+  'tagAlbumArtist',
+  'tagDate',
+  'tagComposer',
+  'tagPublisher',
+  'tagComment',
+  'tagDescription',
+  'tagEncoder',
+  'tagEncodedBy',
+  'tagIsbn',
+  'tagLanguage',
+  'tagASIN',
+  'tagItunesId',
+  'tagPodcastType',
+  'tagEpisodeType',
+  'tagOverdriveMediaMarker',
+  'tagOriginalYear',
+  'tagReleaseCountry',
+  'tagReleaseType',
+  'tagReleaseStatus',
+  'tagISRC',
+  'tagMusicBrainzTrackId',
+  'tagMusicBrainzAlbumId',
+  'tagMusicBrainzAlbumArtistId',
+  'tagMusicBrainzArtistId'
+] as const
+
+type TagKey = (typeof TAG_KEYS)[number]
+
+class AudioMetaTags {
+  tagAlbum: string | null = null
+  tagAlbumSort: string | null = null
+  tagArtist: string | null = null
+  tagArtistSort: string | null = null
+  tagGenre: string | null = null
+  tagTitle: string | null = null
+  tagTitleSort: string | null = null
+  tagSeries: string | null = null
+  tagSeriesPart: string | null = null
+  tagGrouping: string | null = null
+  tagTrack: string | null = null
+  tagDisc: string | null = null
+  tagSubtitle: string | null = null
+  tagAlbumArtist: string | null = null
+  tagDate: string | null = null
+  tagComposer: string | null = null
+  tagPublisher: string | null = null
+  tagComment: string | null = null
+  tagDescription: string | null = null
+  tagEncoder: string | null = null
+  tagEncodedBy: string | null = null
+  tagIsbn: string | null = null
+  tagLanguage: string | null = null
+  tagASIN: string | null = null
+  tagItunesId: string | null = null
+  tagPodcastType: string | null = null
+  tagEpisodeType: string | null = null
+  tagOverdriveMediaMarker: string | null = null
+  tagOriginalYear: string | null = null
+  tagReleaseCountry: string | null = null
+  tagReleaseType: string | null = null
+  tagReleaseStatus: string | null = null
+  tagISRC: string | null = null
+  tagMusicBrainzTrackId: string | null = null
+  tagMusicBrainzAlbumId: string | null = null
+  tagMusicBrainzAlbumArtistId: string | null = null
+  tagMusicBrainzArtistId: string | null = null
+
+  constructor(metadata?: Partial<AudioMetaTagsJsonObject> | null) {
     if (metadata) {
       this.construct(metadata)
     }
   }
 
-  toJSON() {
-    // Only return the tags that are actually set
-    const json = {}
-    for (const key in this) {
-      if (key.startsWith('tag') && this[key]) {
+  toJSON(): AudioMetaTagsJsonObject {
+    const json: AudioMetaTagsJsonObject = {}
+    for (const key of TAG_KEYS) {
+      if (this[key]) {
         json[key] = this[key]
       }
     }
     return json
   }
 
-  get trackNumAndTotal() {
-    const data = {
+  get trackNumAndTotal(): { number: number | null; total: number | null } {
+    const data: { number: number | null; total: number | null } = {
       number: null,
       total: null
     }
 
-    // Track ID3 tag might be "3/10" or just "3"
     if (this.tagTrack) {
       const trackParts = this.tagTrack.split('/').map((part) => Number(part))
       if (trackParts.length > 0) {
-        // Fractional track numbers not supported
         data.number = !isNaN(trackParts[0]) ? Math.trunc(trackParts[0]) : null
       }
       if (trackParts.length > 1) {
@@ -75,8 +116,8 @@ class AudioMetaTags {
     return data
   }
 
-  get discNumAndTotal() {
-    const data = {
+  get discNumAndTotal(): { number: number | null; total: number | null } {
+    const data: { number: number | null; total: number | null } = {
       number: null,
       total: null
     }
@@ -94,20 +135,20 @@ class AudioMetaTags {
     return data
   }
 
-  get discNumber() {
+  get discNumber(): number | null {
     return this.discNumAndTotal.number
   }
-  get discTotal() {
+  get discTotal(): number | null {
     return this.discNumAndTotal.total
   }
-  get trackNumber() {
+  get trackNumber(): number | null {
     return this.trackNumAndTotal.number
   }
-  get trackTotal() {
+  get trackTotal(): number | null {
     return this.trackNumAndTotal.total
   }
 
-  construct(metadata) {
+  construct(metadata: Partial<AudioMetaTagsJsonObject>): void {
     this.tagAlbum = metadata.tagAlbum || null
     this.tagAlbumSort = metadata.tagAlbumSort || null
     this.tagArtist = metadata.tagArtist || null
@@ -147,8 +188,7 @@ class AudioMetaTags {
     this.tagMusicBrainzArtistId = metadata.tagMusicBrainzArtistId || null
   }
 
-  // Data parsed in prober.js
-  setData(payload) {
+  setData(payload: AudioMetaTagsProbePayload): void {
     this.tagAlbum = payload.file_tag_album || null
     this.tagAlbumSort = payload.file_tag_albumsort || null
     this.tagArtist = payload.file_tag_artist || null
@@ -188,8 +228,8 @@ class AudioMetaTags {
     this.tagMusicBrainzArtistId = payload.file_tag_musicbrainz_artistid || null
   }
 
-  updateData(payload) {
-    const dataMap = {
+  updateData(payload: AudioMetaTagsProbePayload): boolean {
+    const dataMap: Record<string, string | null> = {
       tagAlbum: payload.file_tag_album || null,
       tagAlbumSort: payload.file_tag_albumsort || null,
       tagArtist: payload.file_tag_artist || null,
@@ -230,25 +270,32 @@ class AudioMetaTags {
     }
 
     let hasUpdates = false
-    for (const key in dataMap) {
-      if (dataMap[key] !== this[key]) {
-        this[key] = dataMap[key]
+    for (const key of TAG_KEYS) {
+      const val = dataMap[key]
+      if (val !== this[key]) {
+        this[key] = val
         hasUpdates = true
       }
     }
     return hasUpdates
   }
 
-  clone() {
+  clone(): AudioMetaTags {
     return new AudioMetaTags(this.toJSON())
   }
 
-  isEqual(audioFileMetadata) {
-    if (!audioFileMetadata || !audioFileMetadata.toJSON) return false
-    for (const key in audioFileMetadata.toJSON()) {
-      if (audioFileMetadata[key] !== this[key]) return false
+  isEqual(audioFileMetadata?: AudioMetaTags | null): boolean {
+    if (!audioFileMetadata || typeof audioFileMetadata.toJSON !== 'function') return false
+    const otherJson = audioFileMetadata.toJSON()
+    const thisJson = this.toJSON()
+    for (const key of Object.keys(thisJson) as (keyof AudioMetaTagsJsonObject)[]) {
+      if (thisJson[key] !== otherJson[key]) return false
+    }
+    for (const key of Object.keys(otherJson) as (keyof AudioMetaTagsJsonObject)[]) {
+      if (thisJson[key] !== otherJson[key]) return false
     }
     return true
   }
 }
-module.exports = AudioMetaTags
+
+export = AudioMetaTags

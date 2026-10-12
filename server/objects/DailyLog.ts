@@ -1,15 +1,21 @@
-const Path = require('path')
-const date = require('../libs/dateAndTime')
-const fs = require('../libs/fsExtra')
-const fileUtils = require('../utils/fileUtils')
-const Logger = require('../Logger')
+import Path from 'path'
+import date from '../libs/dateAndTime'
+import fs from '../libs/fsExtra'
+import fileUtils from '../utils/fileUtils'
+import Logger from '../Logger'
+import type { LogObject, DailyLogJsonObject } from '../types'
 
 class DailyLog {
-  /**
-   * 
-   * @param {string} dailyLogDirPath Path to daily logs /metadata/logs/daily
-   */
-  constructor(dailyLogDirPath) {
+  id: string
+  dailyLogDirPath: string
+  filename: string
+  fullPath: string
+  createdAt: number
+  logs: LogObject[]
+  bufferedLogLines: string[]
+  locked: boolean
+
+  constructor(dailyLogDirPath: string) {
     this.id = date.format(new Date(), 'YYYY-MM-DD')
 
     this.dailyLogDirPath = dailyLogDirPath
@@ -18,23 +24,21 @@ class DailyLog {
 
     this.createdAt = Date.now()
 
-    /** @type {import('../managers/LogManager').LogObject[]} */
     this.logs = []
-    /** @type {string[]} */
     this.bufferedLogLines = []
 
     this.locked = false
   }
 
-  static getCurrentDailyLogFilename() {
+  static getCurrentDailyLogFilename(): string {
     return date.format(new Date(), 'YYYY-MM-DD') + '.txt'
   }
 
-  static getCurrentDateString() {
+  static getCurrentDateString(): string {
     return date.format(new Date(), 'YYYY-MM-DD')
   }
 
-  toJSON() {
+  toJSON(): DailyLogJsonObject {
     return {
       id: this.id,
       dailyLogDirPath: this.dailyLogDirPath,
@@ -44,11 +48,8 @@ class DailyLog {
     }
   }
 
-  /**
-   * Append all buffered lines to daily log file
-   */
-  appendBufferedLogs() {
-    let buffered = [...this.bufferedLogLines]
+  appendBufferedLogs(): Promise<void> {
+    const buffered = [...this.bufferedLogLines]
     this.bufferedLogLines = []
 
     let oneBigLog = ''
@@ -58,28 +59,19 @@ class DailyLog {
     return this.appendLogLine(oneBigLog)
   }
 
-  /**
-   * 
-   * @param {import('../managers/LogManager').LogObject} logObj 
-   */
-  appendLog(logObj) {
+  appendLog(logObj: LogObject): Promise<void> {
     this.logs.push(logObj)
     return this.appendLogLine(JSON.stringify(logObj) + '\n')
   }
 
-  /**
-   * Append log to daily log file
-   * 
-   * @param {string} line 
-   */
-  async appendLogLine(line) {
+  async appendLogLine(line: string): Promise<void> {
     if (this.locked) {
       this.bufferedLogLines.push(line)
       return
     }
     this.locked = true
 
-    await fs.writeFile(this.fullPath, line, { flag: "a+" }).catch((error) => {
+    await fs.writeFile(this.fullPath, line, { flag: 'a+' }).catch((error) => {
       console.log('[DailyLog] Append log failed', error)
     })
 
@@ -89,12 +81,8 @@ class DailyLog {
     }
   }
 
-  /**
-   * Load all logs from file
-   * Parses lines and re-saves the file if bad lines are removed
-   */
-  async loadLogs() {
-    if (!await fs.pathExists(this.fullPath)) {
+  async loadLogs(): Promise<void> {
+    if (!(await fs.pathExists(this.fullPath))) {
       console.error('Daily log does not exist')
       return
     }
@@ -104,27 +92,26 @@ class DailyLog {
     let hasFailures = false
 
     let logLines = text.split(/\r?\n/)
-    // remove last log if empty
     if (logLines.length && !logLines[logLines.length - 1]) logLines = logLines.slice(0, -1)
 
-    // JSON parse log lines
-    this.logs = logLines.map(t => {
-      if (!t) {
-        hasFailures = true
-        return null
-      }
-      try {
-        return JSON.parse(t)
-      } catch (err) {
-        console.error('Failed to parse log line', t, err)
-        hasFailures = true
-        return null
-      }
-    }).filter(l => !!l)
+    this.logs = logLines
+      .map((t) => {
+        if (!t) {
+          hasFailures = true
+          return null
+        }
+        try {
+          return JSON.parse(t) as LogObject
+        } catch (err) {
+          console.error('Failed to parse log line', t, err)
+          hasFailures = true
+          return null
+        }
+      })
+      .filter((l): l is LogObject => Boolean(l))
 
-    // Rewrite log file to remove errors
     if (hasFailures) {
-      const newLogLines = this.logs.map(l => JSON.stringify(l)).join('\n') + '\n'
+      const newLogLines = this.logs.map((l) => JSON.stringify(l)).join('\n') + '\n'
       await fs.writeFile(this.fullPath, newLogLines)
       console.log('Re-Saved log file to remove bad lines')
     }
@@ -132,4 +119,5 @@ class DailyLog {
     Logger.debug(`[DailyLog] ${this.id}: Loaded ${this.logs.length} Logs`)
   }
 }
-module.exports = DailyLog
+
+export = DailyLog

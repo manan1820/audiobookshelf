@@ -142,7 +142,7 @@ export class PlaybackSession
 
     return new oldPlaybackSession({
       id: playbackSessionExpanded.id,
-      userId: playbackSessionExpanded.userId,
+      userId: playbackSessionExpanded.userId ?? '',
       libraryId: playbackSessionExpanded.libraryId,
       libraryItemId:
         typeof playbackSessionExpanded.extraData?.libraryItemId === 'string'

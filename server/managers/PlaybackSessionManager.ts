@@ -15,7 +15,9 @@ import Stream from '../objects/Stream'
 import type User from '../models/User'
 import type LibraryItem from '../models/LibraryItem'
 import type Podcast from '../models/Podcast'
-import type { AudioTrack } from '../models/Book'
+import type Book from '../models/Book'
+import AudioTrackClass from '../objects/files/AudioTrack'
+import type { AudioTrack } from '../types/dto'
 import type { Request, Response } from 'express'
 import type {
   ClientDeviceInfoPayload,
@@ -268,21 +270,14 @@ class PlaybackSessionManager {
       session = new PlaybackSession(sessionJson)
       session.deviceInfo = deviceInfo
 
+      const libraryItemMedia = libraryItem.media as Book | Podcast | undefined
+      const libraryItemMediaMetadata = libraryItemMedia?.oldMetadataToJSON?.() ?? null
       if (session.mediaMetadata == null) {
-        session.mediaMetadata = {}
-      }
-
-      // Populate mediaMetadata with the current library items metadata for any keys not set by client
-      const libraryItemMedia = libraryItem.media as {
-        oldMetadataToJSON?: () => BookOldMetadataJsonObject | PodcastOldMetadataJsonObject
-      } | undefined
-      const libraryItemMediaMetadata = (libraryItemMedia?.oldMetadataToJSON?.() ?? {}) as Record<
-        string,
-        string | number | boolean | null | undefined
-      >
-      for (const key in libraryItemMediaMetadata) {
-        if (session.mediaMetadata[key] === undefined) {
-          session.mediaMetadata[key] = libraryItemMediaMetadata[key]
+        session.mediaMetadata = libraryItemMediaMetadata ? structuredClone(libraryItemMediaMetadata) : null
+      } else if (libraryItemMediaMetadata) {
+        session.mediaMetadata = {
+          ...libraryItemMediaMetadata,
+          ...session.mediaMetadata
         }
       }
 
@@ -465,7 +460,7 @@ class PlaybackSessionManager {
     const newPlaybackSession = new PlaybackSession()
     newPlaybackSession.setData(libraryItem, user.id, mediaPlayer, deviceInfo, userStartTime, episodeId)
 
-    let audioTracks: unknown[] = []
+    let audioTracks: (AudioTrack | AudioTrackClass)[] = []
     if (shouldDirectPlay) {
       Logger.debug(
         `[PlaybackSessionManager] "${user.username}" starting direct play session for item "${libraryItem.id}" with id ${newPlaybackSession.id} (Device: ${newPlaybackSession.deviceDescription})`
@@ -510,7 +505,10 @@ class PlaybackSessionManager {
     session: PlaybackSession,
     syncData: PlaybackSessionManager.SyncSessionPayload
   ): Promise<boolean> {
-    // TODO: Combine libraryItem query with library query
+    if (!session.libraryItemId) {
+      Logger.error(`[PlaybackSessionManager] syncSession Library Item id is missing "${session.id}"`)
+      return false
+    }
     const libraryItem = await Database.libraryItemModel.getExpandedById(session.libraryItemId)
     if (!libraryItem) {
       Logger.error(`[PlaybackSessionManager] syncSession Library Item not found "${session.libraryItemId}"`)
