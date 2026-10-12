@@ -55,6 +55,7 @@ export interface SeriesOldJsonObject {
 export interface SeriesMinimalJsonObject {
   id: string
   name: string
+  nameIgnorePrefix?: string | null
   sequence?: string | null
 }
 
@@ -920,6 +921,20 @@ export interface XmlOpfMetadata {
     | undefined
 }
 
+export interface XmlOpfManifestItem {
+  $?: {
+    id?: string
+    href?: string
+    'media-type'?: string
+    properties?: string
+    [key: string]: string | undefined
+  }
+}
+
+export interface XmlOpfManifest {
+  item?: XmlOpfManifestItem[]
+}
+
 export interface XmlOpfPackageNode {
   metadata?: XmlOpfMetadata | XmlOpfMetadata[]
   [key: string]: XmlOpfMetadata | XmlOpfMetadata[] | undefined
@@ -928,6 +943,24 @@ export interface XmlOpfPackageNode {
 export interface XmlOpfPackage {
   package?: XmlOpfPackageNode
   [key: string]: XmlOpfPackageNode | undefined
+}
+
+export interface ComicSeriesItem {
+  name: string
+  sequence: string | null
+}
+
+export interface ComicInfoMetadata {
+  title: string | null
+  series: ComicSeriesItem[]
+  description: string | null
+}
+
+export interface EBookFileScanData {
+  path: string
+  ebookFormat: string
+  ebookCoverPath?: string
+  metadata: ComicInfoMetadata | OpfMetadata | null
 }
 
 // ==========================================

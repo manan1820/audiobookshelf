@@ -1,5 +1,4 @@
-
-const entities =  {
+export const entities: { [key: string]: string } = {
     "&AElig": "Æ",
     "&AElig;": "Æ",
     "&AMP": "&",
@@ -2232,4 +2231,4 @@ const entities =  {
     "&zwj;": "‍",
     "&zwnj;": "‌"
 }
-module.exports.entities = entities
+export default { entities }

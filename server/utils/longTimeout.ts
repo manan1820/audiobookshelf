@@ -2,26 +2,27 @@
  * Handle timeouts greater than 32-bit signed integer
  */
 class LongTimeout {
+  timeout: number
+  timer: NodeJS.Timeout | null
+
   constructor() {
     this.timeout = 0
     this.timer = null
   }
 
-  clear() {
-    clearTimeout(this.timer)
+  clear(): void {
+    if (this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
   }
 
-  /**
-   *
-   * @param {Function} fn
-   * @param {number} timeout
-   */
-  set(fn, timeout) {
+  set(fn: () => void, timeout: number): void {
     const maxValue = 2147483647
 
-    const handleTimeout = () => {
+    const handleTimeout = (): void => {
       if (this.timeout > 0) {
-        let delay = Math.min(this.timeout, maxValue)
+        const delay = Math.min(this.timeout, maxValue)
         this.timeout = this.timeout - delay
         this.timer = setTimeout(handleTimeout, delay)
         return
@@ -33,4 +34,5 @@ class LongTimeout {
     handleTimeout()
   }
 }
-module.exports = LongTimeout
+
+export = LongTimeout

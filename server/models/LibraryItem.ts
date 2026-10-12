@@ -152,14 +152,21 @@ export class LibraryItem
   declare feeds?: NonAttribute<Feed[]>
   declare rssFeed?: NonAttribute<Feed>
   declare series?: NonAttribute<{ id: string; name: string; sequence: string | null }>
-  declare collapsedSeries?: NonAttribute<{
-    id: string
-    name: string
-    nameIgnorePrefix: string | null
-    sequence: string | null
-    numBooks: number
-    libraryItemIds: string[]
-  }>
+  declare collapsedSeries?: NonAttribute<
+    | {
+        id: string
+        name: string
+        nameIgnorePrefix: string | null
+        sequence?: string | null
+        numBooks?: number
+        libraryItemIds?: string[]
+        books?: LibraryItemOldJsonMinifiedObject[]
+        type?: string
+        nameIgnorePrefixSort?: string
+        totalDuration?: number
+      }
+    | SeriesMinimalJsonObject
+  >
   declare mediaItemShare?: NonAttribute<MediaItemShareOldJsonObject | null>
   declare recentEpisode?: PodcastEpisodeOldJsonObject | PodcastEpisodeOldJsonExpandedObject | null
   declare numEpisodesIncomplete?: number

@@ -1,6 +1,26 @@
-const { version } = require('../../package.json')
+import packageJson from '../../package.json'
 
-module.exports.notificationData = {
+const version = (packageJson as { version: string }).version
+
+export interface NotificationEvent {
+  name: string
+  requiresLibrary: boolean
+  libraryMediaType?: string
+  description: string
+  descriptionKey: string
+  variables: string[]
+  defaults: {
+    title: string
+    body: string
+  }
+  testData: { [key: string]: string | number }
+}
+
+export interface NotificationData {
+  events: NotificationEvent[]
+}
+
+export const notificationData: NotificationData = {
   events: [
     {
       name: 'onPodcastEpisodeDownloaded',
@@ -8,7 +28,20 @@ module.exports.notificationData = {
       libraryMediaType: 'podcast',
       description: 'Triggered when a podcast episode is auto-downloaded',
       descriptionKey: 'NotificationOnEpisodeDownloadedDescription',
-      variables: ['libraryItemId', 'libraryId', 'podcastTitle', 'podcastAuthor', 'podcastDescription', 'podcastGenres', 'episodeTitle', 'episodeSubtitle', 'episodeDescription', 'libraryName', 'episodeId', 'mediaTags'],
+      variables: [
+        'libraryItemId',
+        'libraryId',
+        'podcastTitle',
+        'podcastAuthor',
+        'podcastDescription',
+        'podcastGenres',
+        'episodeTitle',
+        'episodeSubtitle',
+        'episodeDescription',
+        'libraryName',
+        'episodeId',
+        'mediaTags'
+      ],
       defaults: {
         title: 'New {{podcastTitle}} Episode!',
         body: '{{episodeTitle}} has been added to {{libraryName}} library.'
@@ -108,3 +141,5 @@ module.exports.notificationData = {
     }
   ]
 }
+
+export default { notificationData }

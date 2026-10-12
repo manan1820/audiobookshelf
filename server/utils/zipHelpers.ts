@@ -1,9 +1,19 @@
-const Path = require('path')
-const { Response } = require('express')
-const Logger = require('../Logger')
-const archiver = require('../libs/archiver')
+import Path from 'path'
+import type { Response } from 'express'
+import Logger from '../Logger'
+import archiver from '../libs/archiver'
 
-module.exports.zipDirectoryPipe = (path, filename, res) => {
+interface PathObject {
+  path: string
+  isFile: boolean
+}
+
+interface NodeErrorWithCode {
+  code?: string
+  message: string
+}
+
+function zipDirectoryPipe(path: string, filename: string, res: Response): Promise<void> {
   return new Promise((resolve, reject) => {
     // create a file to stream archive data to
     res.attachment(filename)
@@ -15,7 +25,7 @@ module.exports.zipDirectoryPipe = (path, filename, res) => {
     // listen for all archive data to be written
     // 'close' event is fired only when a file descriptor is involved
     res.on('close', () => {
-      Logger.info(archive.pointer() + ' total bytes')
+      Logger.info(`${archive.pointer()} total bytes`)
       Logger.debug('archiver has been finalized and the output file descriptor has closed.')
       resolve()
     })
@@ -28,18 +38,17 @@ module.exports.zipDirectoryPipe = (path, filename, res) => {
     })
 
     // good practice to catch warnings (ie stat failures and other non-blocking errors)
-    archive.on('warning', function (err) {
+    archive.on('warning', (err: NodeErrorWithCode) => {
       if (err.code === 'ENOENT') {
         // log warning
         Logger.warn(`[DownloadManager] Archiver warning: ${err.message}`)
       } else {
         // throw error
         Logger.error(`[DownloadManager] Archiver error: ${err.message}`)
-        // throw err
         reject(err)
       }
     })
-    archive.on('error', function (err) {
+    archive.on('error', (err: NodeErrorWithCode) => {
       Logger.error(`[DownloadManager] Archiver error: ${err.message}`)
       reject(err)
     })
@@ -55,13 +64,8 @@ module.exports.zipDirectoryPipe = (path, filename, res) => {
 
 /**
  * Creates a zip archive containing multiple directories and streams it to the response.
- *
- * @param {{ path: string, isFile: boolean }[]} pathObjects
- * @param {string} filename - Name of the zip file to be sent as attachment.
- * @param {Response} res - Response object to pipe the archive data to.
- * @returns {Promise<void>} - Promise that resolves when the zip operation completes.
  */
-module.exports.zipDirectoriesPipe = (pathObjects, filename, res) => {
+function zipDirectoriesPipe(pathObjects: PathObject[], filename: string, res: Response): Promise<void> {
   return new Promise((resolve, reject) => {
     // create a file to stream archive data to
     res.attachment(filename)
@@ -73,7 +77,7 @@ module.exports.zipDirectoriesPipe = (pathObjects, filename, res) => {
     // listen for all archive data to be written
     // 'close' event is fired only when a file descriptor is involved
     res.on('close', () => {
-      Logger.info(archive.pointer() + ' total bytes')
+      Logger.info(`${archive.pointer()} total bytes`)
       Logger.debug('archiver has been finalized and the output file descriptor has closed.')
       resolve()
     })
@@ -86,18 +90,17 @@ module.exports.zipDirectoriesPipe = (pathObjects, filename, res) => {
     })
 
     // good practice to catch warnings (ie stat failures and other non-blocking errors)
-    archive.on('warning', function (err) {
+    archive.on('warning', (err: NodeErrorWithCode) => {
       if (err.code === 'ENOENT') {
         // log warning
         Logger.warn(`[DownloadManager] Archiver warning: ${err.message}`)
       } else {
         // throw error
         Logger.error(`[DownloadManager] Archiver error: ${err.message}`)
-        // throw err
         reject(err)
       }
     })
-    archive.on('error', function (err) {
+    archive.on('error', (err: NodeErrorWithCode) => {
       Logger.error(`[DownloadManager] Archiver error: ${err.message}`)
       reject(err)
     })
@@ -121,17 +124,20 @@ module.exports.zipDirectoriesPipe = (pathObjects, filename, res) => {
 
 /**
  * Handles errors that occur during the download process.
- *
- * @param {*} error
- * @param {Response} res
- * @returns {*}
  */
-module.exports.handleDownloadError = (error, res) => {
+function handleDownloadError(error: unknown, res: Response): void {
   if (!res.headersSent) {
-    if (error.code === 'ENOENT') {
-      return res.status(404).send('File not found')
+    const err = error as { code?: string }
+    if (err && err.code === 'ENOENT') {
+      res.status(404).send('File not found')
     } else {
-      return res.status(500).send('Download failed')
+      res.status(500).send('Download failed')
     }
   }
+}
+
+export = {
+  zipDirectoryPipe,
+  zipDirectoriesPipe,
+  handleDownloadError
 }

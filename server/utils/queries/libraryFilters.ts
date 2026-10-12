@@ -1,4 +1,4 @@
-import { Sequelize, Op, WhereOptions, Includeable } from 'sequelize'
+import { Sequelize, Op, WhereOptions, Includeable, FindOptions } from 'sequelize'
 import Logger from '../../Logger'
 import Database from '../../Database'
 import libraryItemsBookFilters from './libraryItemsBookFilters'
@@ -11,6 +11,7 @@ import type LibraryItem from '../../models/LibraryItem'
 import type Author from '../../models/Author'
 import type Book from '../../models/Book'
 import type Feed from '../../models/Feed'
+import type { PodcastAttributes } from '../../models/Podcast'
 import type {
   LibraryFilterOptions,
   FilteredLibraryItemsResult,
@@ -686,8 +687,8 @@ const libraryFilters = {
       }
 
       const findAll = process.env.QUERY_PROFILING
-        ? profile(Database.podcastModel.findAll.bind(Database.podcastModel))
-        : Database.podcastModel.findAll.bind(Database.podcastModel)
+        ? profile((options?: FindOptions<PodcastAttributes>) => Database.podcastModel.findAll(options))
+        : (options?: FindOptions<PodcastAttributes>) => Database.podcastModel.findAll(options)
       const podcasts = await findAll({
         include: {
           model: Database.libraryItemModel,

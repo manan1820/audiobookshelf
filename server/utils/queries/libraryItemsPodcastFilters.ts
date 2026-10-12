@@ -17,6 +17,7 @@ import type Library from '../../models/Library'
 import type LibraryItem from '../../models/LibraryItem'
 import type Podcast from '../../models/Podcast'
 import type PodcastEpisode from '../../models/PodcastEpisode'
+import type { PodcastEpisodeAttributes } from '../../models/PodcastEpisode'
 import type {
   GenreWithCount,
   TagWithCount,
@@ -633,8 +634,8 @@ const libraryItemsPodcastFilters = {
     }
 
     const findAllFn = process.env.QUERY_PROFILING
-      ? profile(Database.podcastEpisodeModel.findAll.bind(Database.podcastEpisodeModel))
-      : Database.podcastEpisodeModel.findAll.bind(Database.podcastEpisodeModel)
+      ? profile((options?: FindOptions<PodcastEpisodeAttributes>) => Database.podcastEpisodeModel.findAll(options))
+      : (options?: FindOptions<PodcastEpisodeAttributes>) => Database.podcastEpisodeModel.findAll(options)
 
     const episodes = await findAllFn(findOptions)
 
