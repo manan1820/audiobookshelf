@@ -369,7 +369,7 @@ export interface UserPublicJsonObject {
   id: string
   username: string
   type: string
-  session: unknown
+  session: PlaybackSessionOldJsonObject | null
   lastSeen: number | null
   createdAt: number
 }
@@ -381,7 +381,7 @@ export interface UserOldJsonForBrowserObject {
   type: string
   token: string | null
   isOldToken: boolean
-  mediaProgress?: unknown[]
+  mediaProgress?: MediaProgressOldJsonObject[]
   seriesHideFromContinueListening: string[]
   bookmarks?: AudioBookmarkObject[]
   isActive: boolean
@@ -392,7 +392,7 @@ export interface UserOldJsonForBrowserObject {
   librariesAccessible: string[]
   itemTagsSelected: string[]
   hasOpenIDLink: boolean
-  latestSession?: unknown
+  latestSession?: PlaybackSessionOldJsonObject | null
 }
 
 export interface UserExtraData {
@@ -547,6 +547,24 @@ export interface PodcastOldJsonExpandedObject extends PodcastOldJsonMinifiedObje
 // 7. PlaybackSession DTOs
 // ==========================================
 
+export interface DeviceInfoObject {
+  id: string | null
+  userId: string | null
+  deviceId: string | null
+  ipAddress: string | null
+  browserName: string | null
+  browserVersion: string | null
+  osName: string | null
+  osVersion: string | null
+  deviceType: string | null
+  clientVersion: string | null
+  manufacturer: string | null
+  model: string | null
+  sdkVersion: string | null
+  clientName: string | null
+  deviceName: string | null
+}
+
 export interface PlaybackSessionExtraData {
   libraryItemId?: string | null
 }
@@ -574,7 +592,39 @@ export interface PlaybackSessionMediaMetadata {
   itunesId?: string | null
   itunesArtistId?: string | null
   type?: string | null
-  [key: string]: string | number | boolean | BookAuthorMetadataObject[] | BookSeriesMetadataObject[] | string[] | null | undefined
+}
+
+export interface PlaybackSessionOldJsonObject {
+  id: string
+  userId: string
+  libraryId: string | null
+  libraryItemId: string | null
+  bookId: string | null
+  episodeId: string | null
+  mediaType: string
+  mediaMetadata: PlaybackSessionMediaMetadata | null
+  chapters: ChapterObject[] | null
+  displayTitle: string | null
+  displayAuthor: string | null
+  coverPath: string | null
+  duration: number | null
+  playMethod: number | null
+  mediaPlayer: string | null
+  deviceInfo: DeviceInfoObject | null
+  serverVersion: string | null
+  date: string | null
+  dayOfWeek: string | null
+  timeListening: number | null
+  startTime: number | null
+  currentTime: number
+  startedAt: number | null
+  updatedAt: number | null
+}
+
+export interface PlaybackSessionForClientObject extends PlaybackSessionOldJsonObject {
+  audioTracks: AudioTrack[]
+  libraryItem: LibraryItemOldJsonExpandedObject | null
+  coverAspectRatio?: number
 }
 
 // ==========================================
@@ -738,8 +788,8 @@ export interface LibraryItemOldJsonMinifiedObject {
   media: BookOldJsonMinifiedObject | PodcastOldJsonMinifiedObject
   numFiles: number
   size: number | bigint | null | undefined
-  collapsedSeries?: unknown
-  rssFeed?: unknown
+  collapsedSeries?: SeriesMinimalJsonObject | null
+  rssFeed?: FeedOldJsonObject | null
   numEpisodesIncomplete?: number
   mediaItemShare?: unknown
 }
@@ -756,7 +806,14 @@ export interface PersonalizedShelf {
   label: string
   labelStringKey: string
   type: string
-  entities: unknown[]
+  entities: (
+    | BookOldJsonObject
+    | AuthorOldJsonObject
+    | AuthorOldJsonExpandedObject
+    | SeriesOldJsonObject
+    | LibraryItemOldJsonObject
+    | LibraryItemOldJsonMinifiedObject
+  )[]
   total?: number
   category?: string
 }

@@ -2,15 +2,35 @@ import type Library from '../../models/Library'
 import type User from '../../models/User'
 import type LibraryItem from '../../models/LibraryItem'
 import type Author from '../../models/Author'
-import type { LibraryFilterOptions } from '../../types'
+import type {
+  LibraryFilterOptions,
+  LibraryItemOldJsonMinifiedObject,
+  SeriesOldJsonObject,
+  AuthorOldJsonExpandedObject
+} from '../../types'
 
 export interface FilteredLibraryItemsResult {
   libraryItems: LibraryItem[]
   count: number
 }
 
-export interface MediaItemsInProgressResult {
-  items: Array<LibraryItem & { media: { ebookFormat?: string; numTracks?: number } }>
+export interface ShelfLibraryItemsResult {
+  libraryItems: LibraryItemOldJsonMinifiedObject[]
+  count: number
+}
+
+export interface ShelfMediaItemsResult {
+  items: LibraryItemOldJsonMinifiedObject[]
+  count: number
+}
+
+export interface ShelfSeriesResult {
+  series: SeriesOldJsonObject[]
+  count: number
+}
+
+export interface ShelfAuthorsResult {
+  authors: AuthorOldJsonExpandedObject[]
   count: number
 }
 
@@ -28,54 +48,54 @@ export function getMediaItemsInProgress(
   include: string[],
   limit: number,
   includeFinished?: boolean
-): Promise<MediaItemsInProgressResult>
+): Promise<ShelfMediaItemsResult>
 
 export function getLibraryItemsContinueSeries(
   library: Library,
   user: User,
   include: string[],
   limit: number
-): Promise<FilteredLibraryItemsResult>
+): Promise<ShelfLibraryItemsResult>
 
 export function getLibraryItemsMostRecentlyAdded(
   library: Library,
   user: User,
   include: string[],
   limit: number
-): Promise<FilteredLibraryItemsResult>
+): Promise<ShelfLibraryItemsResult>
 
 export function getSeriesMostRecentlyAdded(
   library: Library,
   user: User,
   include: string[],
   limit: number
-): Promise<{ series: unknown[]; count: number }>
+): Promise<ShelfSeriesResult>
 
 export function getLibraryItemsToDiscover(
   library: Library,
   user: User,
   include: string[],
   limit: number
-): Promise<FilteredLibraryItemsResult>
+): Promise<ShelfLibraryItemsResult>
 
 export function getMediaFinished(
   library: Library,
   user: User,
   include: string[],
   limit: number
-): Promise<MediaItemsInProgressResult>
+): Promise<ShelfMediaItemsResult>
 
 export function getNewestAuthors(
   library: Library,
   user: User,
   limit: number
-): Promise<{ authors: unknown[]; count: number }>
+): Promise<ShelfAuthorsResult>
 
 export function getNewestPodcastEpisodes(
   library: Library,
   user: User,
   limit: number
-): Promise<FilteredLibraryItemsResult>
+): Promise<ShelfLibraryItemsResult>
 
 export function getLibraryItemsForAuthor(
   author: Author,

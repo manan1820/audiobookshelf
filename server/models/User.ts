@@ -26,7 +26,9 @@ import type {
   UserPublicJsonObject,
   UserOldJsonForBrowserObject,
   UserExtraData as DTOUserExtraData,
-  MediaProgressExtraData
+  MediaProgressExtraData,
+  PlaybackSessionOldJsonObject,
+  PlaybackSessionForClientObject
 } from '../types'
 
 export type {
@@ -552,7 +554,7 @@ export class User
   }
 
   toJSONForPublic(
-    sessions?: Array<{ userId: string; toJSONForClient: () => unknown }>
+    sessions?: Array<{ userId: string; toJSONForClient: () => PlaybackSessionForClientObject | PlaybackSessionOldJsonObject }>
   ): UserPublicJsonObject {
     const session = sessions?.find((s) => s.userId === this.id)?.toJSONForClient() ?? null
     return {
@@ -580,7 +582,7 @@ export class User
       type: this.type,
       token: this.type === 'root' && hideRootToken ? '' : this.token,
       isOldToken: Boolean(this.isOldToken),
-      mediaProgress: this.mediaProgresses?.map((mp) => (mp as { getOldMediaProgress: () => unknown }).getOldMediaProgress()) ?? [],
+      mediaProgress: this.mediaProgresses?.map((mp) => (mp as MediaProgress).getOldMediaProgress()) ?? [],
       seriesHideFromContinueListening: [...seriesHideFromContinueListening],
       bookmarks: this.bookmarks?.map((b) => ({ ...b })) ?? [],
       isActive: this.isActive,

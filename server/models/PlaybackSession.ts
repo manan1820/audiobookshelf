@@ -4,9 +4,17 @@ import type User from './User'
 import type Library from './Library'
 import type Book from './Book'
 import type PodcastEpisode from './PodcastEpisode'
-import type { PlaybackSessionExtraData, PlaybackSessionMediaMetadata } from '../types'
+import type {
+  PlaybackSessionExtraData,
+  PlaybackSessionMediaMetadata,
+  DeviceInfoObject
+} from '../types'
 
-export type { PlaybackSessionExtraData, PlaybackSessionMediaMetadata }
+export type {
+  PlaybackSessionExtraData,
+  PlaybackSessionMediaMetadata,
+  DeviceInfoObject
+}
 
 export interface PlaybackSessionAttributes {
   id: string
@@ -87,15 +95,15 @@ export class PlaybackSession
 
   // Associations
   declare user?: NonAttribute<User>
-  declare device?: NonAttribute<{ getOldDevice(): unknown; id?: string }>
+  declare device?: NonAttribute<{ getOldDevice(): DeviceInfoObject | unknown; id?: string }>
   declare library?: NonAttribute<Library>
   declare book?: NonAttribute<Book>
   declare podcastEpisode?: NonAttribute<PodcastEpisode>
-  declare mediaItem?: NonAttribute<unknown>
+  declare mediaItem?: NonAttribute<Book | PodcastEpisode | null>
 
   static async getOldPlaybackSessions(
     where: WhereOptions<PlaybackSessionAttributes> | null = null
-  ): Promise<unknown[]> {
+  ): Promise<oldPlaybackSession[]> {
     const sequelize = this.sequelize
     if (!sequelize) return []
     const deviceModel = sequelize.models.device
@@ -113,7 +121,7 @@ export class PlaybackSession
     return playbackSessions.map((session) => this.getOldPlaybackSession(session))
   }
 
-  static async getById(sessionId: string): Promise<unknown | null> {
+  static async getById(sessionId: string): Promise<oldPlaybackSession | null> {
     const sequelize = this.sequelize
     if (!sequelize) return null
     const deviceModel = sequelize.models.device
@@ -128,7 +136,7 @@ export class PlaybackSession
     playbackSessionExpanded: PlaybackSession & {
       device?: { getOldDevice(): unknown }
     }
-  ): unknown {
+  ): oldPlaybackSession {
     const isPodcastEpisode = playbackSessionExpanded.mediaItemType === 'podcastEpisode'
 
     return new oldPlaybackSession({
@@ -288,11 +296,11 @@ export class PlaybackSession
     }
   }
 
-  getMediaItem(options?: unknown): Promise<unknown> {
+  getMediaItem(options?: unknown): Promise<Book | PodcastEpisode | null> {
     if (!this.mediaItemType) return Promise.resolve(null)
     const self = this as {
-      getBook?: (options?: unknown) => Promise<unknown>
-      getPodcastEpisode?: (options?: unknown) => Promise<unknown>
+      getBook?: (options?: unknown) => Promise<Book | null>
+      getPodcastEpisode?: (options?: unknown) => Promise<PodcastEpisode | null>
     }
     if (this.mediaItemType === 'book' && typeof self.getBook === 'function') {
       return self.getBook(options)

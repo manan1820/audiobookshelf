@@ -31,7 +31,11 @@ import type {
   PersonalizedShelf,
   LibraryFilterOptions,
   BookAbsMetadataJsonObject,
-  PodcastAbsMetadataJsonObject
+  PodcastAbsMetadataJsonObject,
+  SeriesMinimalJsonObject,
+  FeedOldJsonObject,
+  BookOldJsonMinifiedObject,
+  PodcastOldJsonMinifiedObject
 } from '../types'
 
 export type {
@@ -42,6 +46,12 @@ export type {
   LibraryItemOldJsonExpandedObject,
   PersonalizedShelf,
   LibraryFilterOptions
+}
+
+function isBookMinified(
+  media: BookOldJsonMinifiedObject | PodcastOldJsonMinifiedObject
+): media is BookOldJsonMinifiedObject {
+  return 'numTracks' in media
 }
 
 const filters = libraryFilters
@@ -353,9 +363,9 @@ export class LibraryItem
       libraryItems: libraryItems.map((li) => {
         const oldLibraryItem = li.toOldJSONMinified()
         const liAny = li as LibraryItem & {
-          collapsedSeries?: unknown
+          collapsedSeries?: SeriesMinimalJsonObject | null
           series?: unknown
-          rssFeed?: { toOldJSONMinified: () => unknown }
+          rssFeed?: { toOldJSONMinified: () => FeedOldJsonObject } | FeedOldJsonObject | null
           mediaItemShare?: unknown
           numEpisodesIncomplete?: number
         }
@@ -369,7 +379,10 @@ export class LibraryItem
           }
         }
         if (liAny.rssFeed) {
-          oldLibraryItem.rssFeed = liAny.rssFeed.toOldJSONMinified()
+          oldLibraryItem.rssFeed =
+            typeof (liAny.rssFeed as { toOldJSONMinified?: () => FeedOldJsonObject }).toOldJSONMinified === 'function'
+              ? (liAny.rssFeed as { toOldJSONMinified: () => FeedOldJsonObject }).toOldJSONMinified()
+              : (liAny.rssFeed as FeedOldJsonObject)
         }
         const mediaAny = li.media as { numEpisodes?: number; size?: number } | undefined
         if (mediaAny?.numEpisodes && oldLibraryItem.media) {
@@ -418,10 +431,10 @@ export class LibraryItem
     )
     if (itemsInProgressPayload.items.length) {
       const ebookOnlyItemsInProgress = itemsInProgressPayload.items.filter(
-        (li) => li.media.ebookFormat && !li.media.numTracks
+        (li) => isBookMinified(li.media) && Boolean(li.media.ebookFormat && !li.media.numTracks)
       )
       const audioItemsInProgress = itemsInProgressPayload.items.filter(
-        (li) => li.media.numTracks || li.mediaType === 'podcast'
+        (li) => (isBookMinified(li.media) && Boolean(li.media.numTracks)) || li.mediaType === 'podcast'
       )
 
       if (audioItemsInProgress.length) {
@@ -521,10 +534,10 @@ export class LibraryItem
       const mediaFinishedPayload = mediaFinishedResult.payload
       if (mediaFinishedPayload.items.length) {
         const ebookOnly = mediaFinishedPayload.items.filter(
-          (li) => li.media.ebookFormat && !li.media.numTracks
+          (li) => isBookMinified(li.media) && Boolean(li.media.ebookFormat && !li.media.numTracks)
         )
         const audioItems = mediaFinishedPayload.items.filter(
-          (li) => li.media.numTracks || li.mediaType === 'podcast'
+          (li) => (isBookMinified(li.media) && Boolean(li.media.numTracks)) || li.mediaType === 'podcast'
         )
 
         if (audioItems.length) {
@@ -595,10 +608,10 @@ export class LibraryItem
       const mediaFinishedPayload = mediaFinishedResult.payload
       if (mediaFinishedPayload.items.length) {
         const ebookOnly = mediaFinishedPayload.items.filter(
-          (li) => li.media.ebookFormat && !li.media.numTracks
+          (li) => isBookMinified(li.media) && Boolean(li.media.ebookFormat && !li.media.numTracks)
         )
         const audioItems = mediaFinishedPayload.items.filter(
-          (li) => li.media.numTracks || li.mediaType === 'podcast'
+          (li) => (isBookMinified(li.media) && Boolean(li.media.numTracks)) || li.mediaType === 'podcast'
         )
 
         if (audioItems.length) {

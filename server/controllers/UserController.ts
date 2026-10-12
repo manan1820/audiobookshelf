@@ -7,7 +7,12 @@ import Database from '../Database'
 import { toNumber } from '../utils/index'
 import type User from '../models/User'
 import type { UserPermissions } from '../models/User'
-import type { UserPermissionsObject, UserOldJsonForBrowserObject, MediaProgressOldJsonObject } from '../types'
+import type {
+  UserPermissionsObject,
+  UserOldJsonForBrowserObject,
+  MediaProgressOldJsonObject,
+  PlaybackSessionOldJsonObject
+} from '../types'
 import type MediaProgress from '../models/MediaProgress'
 
 interface RequestWithUser extends Request {
@@ -57,9 +62,9 @@ class UserController {
       for (const user of users) {
         const userSessions = (await Database.getPlaybackSessions({
           userId: user.id
-        })) as Array<{ updatedAt: number }>
+        })) as Array<PlaybackSessionOldJsonObject>
         user.latestSession =
-          userSessions.sort((a, b) => b.updatedAt - a.updatedAt).shift() ?? null
+          userSessions.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)).shift() ?? null
       }
     }
 
