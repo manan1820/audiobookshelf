@@ -2,6 +2,8 @@ import { DataTypes, Model, where, fn, col, literal, Sequelize, NonAttribute, Opt
 import { getTitlePrefixAtEnd, getTitleIgnorePrefix } from '../utils'
 import type Book from './Book'
 import type Library from './Library'
+import type BookSeries from './BookSeries'
+import type Feed from './Feed'
 import type { SeriesOldJsonObject, SeriesMinimalJsonObject } from '../types'
 
 export interface SeriesAttributes {
@@ -31,6 +33,8 @@ export class Series
 
   // Expanded properties
   declare books?: NonAttribute<Book[]>
+  declare bookSeries?: NonAttribute<BookSeries[] | BookSeries>
+  declare feeds?: NonAttribute<Feed[]>
   declare library?: NonAttribute<Library>
 
   // Sequelize association mixins

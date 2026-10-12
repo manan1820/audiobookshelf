@@ -49,11 +49,8 @@ export type {
   BookOldJsonExpandedObject
 }
 
-export interface SeriesExpandedItem extends Series {
-  bookSeries?: {
-    sequence: string | null
-    save: () => Promise<unknown>
-  }
+export interface SeriesExpandedItem extends Omit<Series, 'bookSeries'> {
+  bookSeries?: BookSeries
 }
 
 export interface BookAttributes {

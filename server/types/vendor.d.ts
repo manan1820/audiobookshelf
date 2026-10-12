@@ -144,9 +144,19 @@ declare module '../libs/recursiveReaddirAsync' {
 declare module '../libs/fastSort' {
   export function createNewSortInstance(options?: unknown): {
     <T>(array: T[]): {
-      asc(getter: unknown): T[]
-      desc(getter: unknown): T[]
-      by(descriptors: unknown): T[]
+      asc(getter?: ((item: T) => unknown) | string): T[]
+      desc(getter?: ((item: T) => unknown) | string): T[]
+      by(descriptors?: unknown): T[]
+    }
+  }
+}
+
+declare module '../../libs/fastSort' {
+  export function createNewSortInstance(options?: unknown): {
+    <T>(array: T[]): {
+      asc(getter?: ((item: T) => unknown) | string): T[]
+      desc(getter?: ((item: T) => unknown) | string): T[]
+      by(descriptors?: unknown): T[]
     }
   }
 }

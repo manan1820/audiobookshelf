@@ -1,17 +1,18 @@
-const Sequelize = require('sequelize')
-const Database = require('../../Database')
+import { Sequelize, Op } from 'sequelize'
+import Database from '../../Database'
+import type { AuthorOldJsonExpandedObject, TextSearchQuery, AuthorWithCount } from '../../types'
 
-module.exports = {
+const authorFilters = {
   /**
    * Get authors total count
    *
-   * @param {string} libraryId
-   * @returns {Promise<number>} count
+   * @param libraryId
+   * @returns count
    */
-  async getAuthorsTotalCount(libraryId) {
+  async getAuthorsTotalCount(libraryId: string): Promise<number> {
     const authorsCount = await Database.authorModel.count({
       where: {
-        libraryId: libraryId
+        libraryId
       }
     })
     return authorsCount
@@ -20,11 +21,11 @@ module.exports = {
   /**
    * Get authors with count of num books
    *
-   * @param {string} libraryId
-   * @param {number} limit
-   * @returns {Promise<{id:string, name:string, count:number}>}
+   * @param libraryId
+   * @param limit
+   * @returns
    */
-  async getAuthorsWithCount(libraryId, limit) {
+  async getAuthorsWithCount(libraryId: string, limit: number): Promise<AuthorWithCount[]> {
     const authors = await Database.bookAuthorModel.findAll({
       include: [
         {
@@ -32,20 +33,21 @@ module.exports = {
           as: 'author', // Use the correct alias as defined in your associations
           attributes: ['name'],
           where: {
-            libraryId: libraryId
+            libraryId
           }
         }
       ],
       attributes: ['authorId', [Sequelize.fn('COUNT', Sequelize.col('authorId')), 'count']],
       group: ['authorId', 'author.id'], // Include 'author.id' to satisfy GROUP BY with JOIN
       order: [[Sequelize.literal('count'), 'DESC']],
-      limit: limit
+      limit
     })
     return authors.map((au) => {
+      const countVal = au.get('count')
       return {
         id: au.authorId,
-        name: au.author.name,
-        count: au.get('count') // Use get method to access aliased attributes
+        name: au.author?.name ?? '',
+        count: typeof countVal === 'number' ? countVal : Number(countVal) || 0
       }
     })
   },
@@ -53,17 +55,22 @@ module.exports = {
   /**
    * Search authors
    *
-   * @param {string} libraryId
-   * @param {Database.TextQuery} query
-   * @param {number} limit
-   * @param {number} offset
-   * @returns {Promise<Object[]>} oldAuthor with numBooks
+   * @param libraryId
+   * @param query
+   * @param limit
+   * @param offset
+   * @returns oldAuthor with numBooks
    */
-  async search(libraryId, query, limit, offset) {
+  async search(
+    libraryId: string,
+    query: TextSearchQuery,
+    limit: number,
+    offset: number
+  ): Promise<AuthorOldJsonExpandedObject[]> {
     const matchAuthor = query.matchExpression('name')
     const authors = await Database.authorModel.findAll({
       where: {
-        [Sequelize.Op.and]: [Sequelize.literal(matchAuthor), { libraryId }]
+        [Op.and]: [Sequelize.literal(matchAuthor), { libraryId }]
       },
       attributes: {
         include: [[Sequelize.literal('(SELECT count(*) FROM bookAuthors ba WHERE ba.authorId = author.id)'), 'numBooks']]
@@ -71,11 +78,15 @@ module.exports = {
       limit,
       offset
     })
-    const authorMatches = []
+    const authorMatches: AuthorOldJsonExpandedObject[] = []
     for (const author of authors) {
-      const oldAuthor = author.toOldJSONExpanded(author.dataValues.numBooks)
+      const numBooksVal = author.get('numBooks')
+      const numBooks = typeof numBooksVal === 'number' ? numBooksVal : Number(numBooksVal) || 0
+      const oldAuthor = author.toOldJSONExpanded(numBooks)
       authorMatches.push(oldAuthor)
     }
     return authorMatches
   }
 }
+
+export = authorFilters

@@ -22,6 +22,7 @@ import type Library from './Library'
 import type LibraryFolder from './LibraryFolder'
 import type User from './User'
 import type Author from './Author'
+import type Feed from './Feed'
 import type {
   LibraryFileObject,
   LibraryItemExtraData,
@@ -36,7 +37,9 @@ import type {
   FeedOldJsonObject,
   BookOldJsonMinifiedObject,
   PodcastOldJsonMinifiedObject,
-  MediaItemShareOldJsonObject
+  MediaItemShareOldJsonObject,
+  PodcastEpisodeOldJsonObject,
+  PodcastEpisodeOldJsonExpandedObject
 } from '../types'
 
 export type {
@@ -146,6 +149,20 @@ export class LibraryItem
   declare libraryFolder?: NonAttribute<LibraryFolder>
   declare book?: NonAttribute<Book>
   declare podcast?: NonAttribute<Podcast>
+  declare feeds?: NonAttribute<Feed[]>
+  declare rssFeed?: NonAttribute<Feed>
+  declare series?: NonAttribute<{ id: string; name: string; sequence: string | null }>
+  declare collapsedSeries?: NonAttribute<{
+    id: string
+    name: string
+    nameIgnorePrefix: string | null
+    sequence: string | null
+    numBooks: number
+    libraryItemIds: string[]
+  }>
+  declare mediaItemShare?: NonAttribute<MediaItemShareOldJsonObject | null>
+  declare recentEpisode?: PodcastEpisodeOldJsonObject | PodcastEpisodeOldJsonExpandedObject | null
+  declare numEpisodesIncomplete?: number
 
   static getLibraryItemsIncrement(
     offset: number,

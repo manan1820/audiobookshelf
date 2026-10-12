@@ -48,8 +48,8 @@ export interface SeriesOldJsonObject {
   updatedAt: number
   libraryId: string
   totalDuration?: number
-  rssFeed?: FeedOldJsonObject | null
-  books?: (BookOldJsonObject | BookOldJsonMinifiedObject)[]
+  rssFeed?: FeedOldJsonObject | FeedOldJsonMinifiedObject | null
+  books?: (BookOldJsonObject | BookOldJsonMinifiedObject | LibraryItemOldJsonMinifiedObject)[]
 }
 
 export interface SeriesMinimalJsonObject {
@@ -243,6 +243,7 @@ export interface BookOldMetadataMinifiedJsonObject {
   language: string | null
   explicit: boolean
   abridged: boolean
+  series?: SeriesMinimalJsonObject | SeriesMinimalJsonObject[] | { id: string; name: string; sequence: string | null }[] | { id: string; name: string; sequence: string | null } | null
 }
 
 export interface BookOldMetadataExpandedJsonObject extends BookOldMetadataJsonObject {
@@ -472,6 +473,8 @@ export interface PodcastEpisodeOldJsonExpandedObject extends PodcastEpisodeOldJs
   audioTrack: AudioTrack | null
   size: number
   duration: number
+  podcast?: PodcastOldJsonObject
+  libraryId?: string
 }
 
 export interface PodcastAbsMetadataJsonObject {
@@ -768,8 +771,9 @@ export interface LibraryItemOldJsonMinifiedObject {
   numFiles: number
   size: number | bigint | null | undefined
   collapsedSeries?: SeriesMinimalJsonObject | null
-  rssFeed?: FeedOldJsonObject | null
+  rssFeed?: FeedOldJsonObject | FeedOldJsonMinifiedObject | null
   numEpisodesIncomplete?: number
+  recentEpisode?: PodcastEpisodeOldJsonObject | PodcastEpisodeOldJsonExpandedObject | null
   mediaItemShare?: MediaItemShareOldJsonObject | null
 }
 
@@ -798,16 +802,21 @@ export interface PersonalizedShelf {
 }
 
 export interface LibraryFilterOptions {
-  limit?: number
-  page?: number
-  sort?: string
-  desc?: number | boolean
-  filter?: string
-  search?: string
+  limit?: number | null
+  offset?: number | null
+  page?: number | null
+  sort?: string | null
+  sortBy?: string | null
+  desc?: number | boolean | null
+  sortDesc?: boolean | null
+  filter?: string | null
+  filterBy?: string | null
+  search?: string | null
   minified?: boolean
-  collapseSeries?: boolean
-  include?: string
-  [key: string]: unknown
+  collapseSeries?: boolean | null
+  collapseseries?: boolean | null
+  include?: string | string[]
+  mediaType?: string | null
 }
 
 // ==========================================
@@ -1190,7 +1199,7 @@ export interface CollectionOldJsonObject {
 
 export interface CollectionOldJsonExpandedObject extends Omit<CollectionOldJsonObject, 'books'> {
   books: LibraryItemOldJsonExpandedObject[]
-  rssFeed?: FeedOldJsonObject | null
+  rssFeed?: FeedOldJsonObject | FeedOldJsonMinifiedObject | null
 }
 
 export interface PlaylistOldJsonObject {

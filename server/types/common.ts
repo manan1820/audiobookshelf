@@ -21,6 +21,10 @@ export interface PagedResult<T> {
 export type UUID = string
 export type Timestamp = number
 
+export interface TextSearchQuery {
+  matchExpression(column: string): string
+}
+
 /**
  * Type guard to check if a value is defined (not null and not undefined).
  */
