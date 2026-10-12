@@ -2,11 +2,16 @@ import { DataTypes, Model, Sequelize, Optional } from 'sequelize'
 import oldEmailSettings from '../objects/settings/EmailSettings'
 import oldServerSettings from '../objects/settings/ServerSettings'
 import oldNotificationSettings from '../objects/settings/NotificationSettings'
-import type { SettingValueObject } from '../types'
+import type {
+  SettingValueObject,
+  ServerSettingsJsonObject,
+  EmailSettingsJsonObject,
+  NotificationSettingsJsonObject
+} from '../types'
 
 export interface SettingAttributes {
   key: string
-  value: SettingValueObject
+  value: SettingValueObject | ServerSettingsJsonObject | EmailSettingsJsonObject | NotificationSettingsJsonObject
   createdAt?: Date
   updatedAt?: Date
 }
@@ -26,12 +31,12 @@ export class Setting
   implements SettingAttributes
 {
   declare key: string
-  declare value: SettingValueObject
+  declare value: SettingValueObject | ServerSettingsJsonObject | EmailSettingsJsonObject | NotificationSettingsJsonObject
   declare readonly createdAt: Date
   declare readonly updatedAt: Date
 
   static async getOldSettings(): Promise<OldSettingsResult> {
-    const settings = (await this.findAll()).map((se) => se.value)
+    const settings = (await this.findAll()).map((se) => se.value as SettingValueObject)
 
     const emailSettingsJson = settings.find((se) => se.id === 'email-settings')
     const serverSettingsJson = settings.find((se) => se.id === 'server-settings')
@@ -45,7 +50,9 @@ export class Setting
     }
   }
 
-  static updateSettingObj(setting: SettingValueObject): Promise<[Setting, boolean | null]> {
+  static updateSettingObj(
+    setting: SettingValueObject | ServerSettingsJsonObject | EmailSettingsJsonObject | NotificationSettingsJsonObject
+  ): Promise<[Setting, boolean | null]> {
     return this.upsert({
       key: setting.id,
       value: setting

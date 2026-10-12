@@ -16,7 +16,6 @@ class CustomProviderAdapter {
    * @param {string} providerSlug
    * @param {string} mediaType
    * @param {number} [timeout] response timeout in ms
-   * @returns {Promise<Object[]>}
    */
   async search(title, author, isbn, providerSlug, mediaType, timeout = this.#responseTimeout) {
     if (!timeout || isNaN(timeout)) timeout = this.#responseTimeout

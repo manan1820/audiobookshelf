@@ -225,7 +225,7 @@ const libraryItemsPodcastFilters = {
       })
     }
     if (filterGroup === 'issues') {
-      libraryItemWhere[Op.or as unknown as string] = [
+      libraryItemWhere[Op.or] = [
         {
           isMissing: true
         },

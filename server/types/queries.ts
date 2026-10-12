@@ -169,7 +169,7 @@ export interface UserFilterReplacements {
 }
 
 export interface QueryWhereAttributeHash {
-  [key: string]:
+  [key: string | symbol]:
     | WhereAttributeHashValue<unknown>
     | WhereOptions
     | string

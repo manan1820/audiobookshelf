@@ -87,6 +87,7 @@ export interface LibraryFolderOldJsonObject {
 
 export interface LibraryExtraData {
   lastScanMetadataPrecedence?: string[] | null
+  oldLibraryId?: string | null
 }
 
 export interface LibraryOldJsonObject {
@@ -148,6 +149,7 @@ export interface AudioFileObject {
   metaTags?: AudioFileMetaTags | null
   mimeType: string
   exclude?: boolean
+  invalid?: boolean
   error?: string | null
 }
 
@@ -305,6 +307,8 @@ export interface BookOldJsonObject {
   audioFiles?: AudioFileObject[] | null
   chapters?: ChapterObject[] | null
   ebookFile?: EBookFileObject | null
+  lastCoverSearchQuery?: string | null
+  lastCoverSearch?: number | null
 }
 
 export interface BookOldJsonMinifiedObject {
@@ -396,6 +400,23 @@ export interface UserOldJsonForBrowserObject {
   itemTagsSelected: string[]
   hasOpenIDLink: boolean
   latestSession?: PlaybackSessionOldJsonObject | null
+}
+
+export interface UserOldJsonObject {
+  id: string
+  username: string
+  pash?: string | null
+  type?: string | null
+  token?: string | null
+  isActive?: boolean
+  lastSeen?: number | null
+  createdAt?: number | null
+  permissions?: Partial<UserPermissionsObject> | null
+  librariesAccessible?: string[]
+  itemTagsSelected?: string[]
+  bookmarks?: AudioBookmarkObject[]
+  seriesHideFromContinueListening?: string[]
+  mediaProgress: MediaProgressOldJsonObject[]
 }
 
 export interface UserExtraData {
@@ -527,6 +548,8 @@ export interface PodcastOldJsonObject {
   lastEpisodeCheck: number | null
   maxEpisodesToKeep: number
   maxNewEpisodesToDownload: number
+  lastCoverSearchQuery?: string | null
+  lastCoverSearch?: number | null
 }
 
 export interface PodcastOldJsonMinifiedObject {
@@ -706,20 +729,20 @@ export interface FeedOldJsonMinifiedObject {
 // ==========================================
 
 export interface LibraryFileObject {
-  ino: string
-  isSupplementary?: boolean
-  addedAt: number
-  updatedAt: number
-  fileType?: string
+  ino: string | null
+  isSupplementary?: boolean | null
+  addedAt: number | null
+  updatedAt: number | null
+  fileType?: string | null
   metadata: {
-    filename: string
-    ext: string
-    path: string
-    relPath: string
-    size: number
-    mtimeMs: number
-    ctimeMs: number
-    birthtimeMs: number
+    filename: string | null
+    ext: string | null
+    path: string | null
+    relPath: string | null
+    size: number | null
+    mtimeMs: number | null
+    ctimeMs: number | null
+    birthtimeMs: number | null
   }
 }
 
@@ -1208,6 +1231,7 @@ export interface PlaylistOldJsonObject {
   libraryId: string
   userId: string
   description: string | null
+  items?: { libraryItemId?: string; episodeId?: string }[]
   lastUpdate: number
   createdAt: number
 }

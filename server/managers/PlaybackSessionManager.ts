@@ -574,7 +574,7 @@ class PlaybackSessionManager {
     await this.removeSession(session.id)
   }
 
-  saveSession(session: PlaybackSession): Promise<unknown> | undefined {
+  saveSession(session: PlaybackSession): Promise<unknown> | undefined | false {
     if (!session.timeListening) return // Do not save a session with no listening time
 
     if (session.lastSave) {

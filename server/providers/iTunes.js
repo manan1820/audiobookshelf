@@ -123,7 +123,6 @@ class iTunes {
    *
    * @param {string} term
    * @param {number} [timeout] response timeout in ms
-   * @returns {Promise<Object[]>}
    */
   searchAudiobooks(term, timeout = this.#responseTimeout) {
     return this.search({ term, entity: 'audiobook', media: 'audiobook' }, timeout).then((results) => {
@@ -157,7 +156,7 @@ class iTunes {
   /**
    *
    * @param {string} term
-   * @param {{country:string}} options
+   * @param {{country?:string}} [options]
    * @param {number} [timeout] response timeout in ms
    * @returns {Promise<iTunesPodcastSearchResult[]>}
    */

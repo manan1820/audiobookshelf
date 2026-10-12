@@ -1,18 +1,21 @@
-const Logger = require('../Logger')
-const iTunes = require('../providers/iTunes')
+import Logger from '../Logger'
+import iTunes, { iTunesPodcastSearchResult } from '../providers/iTunes'
+
+interface PodcastFinderSearchOptions {
+  country?: string
+}
 
 class PodcastFinder {
+  iTunesApi: iTunes
+
   constructor() {
     this.iTunesApi = new iTunes()
   }
 
-  /**
-   *
-   * @param {string} term
-   * @param {{country:string}} options
-   * @returns {Promise<import('../providers/iTunes').iTunesPodcastSearchResult[]>}
-   */
-  async search(term, options = {}) {
+  async search(
+    term: string,
+    options: PodcastFinderSearchOptions = {}
+  ): Promise<iTunesPodcastSearchResult[] | null> {
     if (!term) return null
     Logger.debug(`[iTunes] Searching for podcast with term "${term}"`)
     const results = await this.iTunesApi.searchPodcasts(term, options)
@@ -20,16 +23,16 @@ class PodcastFinder {
     return results
   }
 
-  /**
-   * @param {string} term
-   * @returns {Promise<string[]>}
-   */
-  async findCovers(term) {
+  async findCovers(term: string): Promise<string[] | null> {
     if (!term) return null
     Logger.debug(`[iTunes] Searching for podcast covers with term "${term}"`)
     const results = await this.iTunesApi.searchPodcasts(term)
     if (!results) return []
-    return results.map((r) => r.cover).filter((r) => r)
+    return results
+      .map((r: iTunesPodcastSearchResult) => r.cover)
+      .filter((r): r is string => Boolean(r))
   }
 }
-module.exports = new PodcastFinder()
+
+const podcastFinder = new PodcastFinder()
+export = podcastFinder

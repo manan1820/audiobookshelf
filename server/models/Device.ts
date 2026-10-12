@@ -12,7 +12,7 @@ export interface DeviceAttributes {
   deviceId: string
   clientName?: string | null
   clientVersion?: string | null
-  ipAddress: string
+  ipAddress?: string | null
   deviceName?: string | null
   deviceVersion?: string | null
   extraData?: DeviceExtraData | null
@@ -24,7 +24,7 @@ export interface DeviceAttributes {
 export interface DeviceCreationAttributes
   extends Optional<
     DeviceAttributes,
-    'id' | 'clientName' | 'clientVersion' | 'deviceName' | 'deviceVersion' | 'extraData' | 'createdAt' | 'updatedAt'
+    'id' | 'clientName' | 'clientVersion' | 'ipAddress' | 'deviceName' | 'deviceVersion' | 'extraData' | 'createdAt' | 'updatedAt'
   > {}
 
 export class Device
@@ -35,7 +35,7 @@ export class Device
   declare deviceId: string
   declare clientName: string | null
   declare clientVersion: string | null
-  declare ipAddress: string
+  declare ipAddress: string | null
   declare deviceName: string | null
   declare deviceVersion: string | null
   declare extraData: DeviceExtraData | null

@@ -11,7 +11,6 @@ class OpenLibrary {
    *
    * @param {string} uri
    * @param {number} timeout
-   * @returns {Promise<Object>}
    */
   get(uri, timeout = this.#responseTimeout) {
     if (!timeout || isNaN(timeout)) timeout = this.#responseTimeout
@@ -104,7 +103,6 @@ class OpenLibrary {
    *
    * @param {string} title
    * @param {number} timeout
-   * @returns {Promise<Object[]>}
    */
   async searchTitle(title, timeout = this.#responseTimeout) {
     title = encodeURIComponent(title)

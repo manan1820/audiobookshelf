@@ -186,17 +186,17 @@ export class PlaybackSession
     libraryId?: string | null
     displayTitle?: string | null
     displayAuthor?: string | null
-    duration?: number
-    playMethod?: number
+    duration?: number | null
+    playMethod?: number | null
     mediaPlayer?: string | null
-    startTime?: number
+    startTime?: number | null
     currentTime?: number
     serverVersion?: string | null
-    startedAt?: number
+    startedAt?: number | null
     updatedAt?: number
     userId?: string | null
-    deviceInfo?: { id?: string } | null
-    timeListening?: number
+    deviceInfo?: { id?: string | null } | null
+    timeListening?: number | null
     coverPath?: string | null
     mediaMetadata?: PlaybackSessionMediaMetadata | null
     date?: string | null
@@ -216,17 +216,17 @@ export class PlaybackSession
     libraryId?: string | null
     displayTitle?: string | null
     displayAuthor?: string | null
-    duration?: number
-    playMethod?: number
+    duration?: number | null
+    playMethod?: number | null
     mediaPlayer?: string | null
-    startTime?: number
+    startTime?: number | null
     currentTime?: number
     serverVersion?: string | null
-    startedAt?: number
+    startedAt?: number | null
     updatedAt?: number
     userId?: string | null
-    deviceInfo?: { id?: string } | null
-    timeListening?: number
+    deviceInfo?: { id?: string | null } | null
+    timeListening?: number | null
     coverPath?: string | null
     mediaMetadata?: PlaybackSessionMediaMetadata | null
     date?: string | null
@@ -249,17 +249,17 @@ export class PlaybackSession
     libraryId?: string | null
     displayTitle?: string | null
     displayAuthor?: string | null
-    duration?: number
-    playMethod?: number
+    duration?: number | null
+    playMethod?: number | null
     mediaPlayer?: string | null
-    startTime?: number
+    startTime?: number | null
     currentTime?: number
     serverVersion?: string | null
-    startedAt?: number
+    startedAt?: number | null
     updatedAt?: number
     userId?: string | null
-    deviceInfo?: { id?: string } | null
-    timeListening?: number
+    deviceInfo?: { id?: string | null } | null
+    timeListening?: number | null
     coverPath?: string | null
     mediaMetadata?: PlaybackSessionMediaMetadata | null
     date?: string | null

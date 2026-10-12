@@ -627,7 +627,7 @@ const libraryItemsBookFilters = {
         orderArray.push(Sequelize.literal('CAST(`series.bookSeries.sequence` AS FLOAT) ASC NULLS LAST'))
       }
     } else if (filterGroup === 'issues') {
-      libraryItemWhere[Op.or as unknown as string] = [
+      libraryItemWhere[Op.or] = [
         {
           isMissing: true
         },

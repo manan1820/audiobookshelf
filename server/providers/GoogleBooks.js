@@ -45,7 +45,6 @@ class GoogleBooks {
    * @param {string} title
    * @param {string} author
    * @param {number} [timeout] response timeout in ms
-   * @returns {Promise<Object[]>}
    **/
   async search(title, author, timeout = this.#responseTimeout) {
     if (!timeout || isNaN(timeout)) timeout = this.#responseTimeout

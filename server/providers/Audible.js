@@ -120,11 +120,10 @@ class Audible {
   /**
    *
    * @param {string} title
-   * @param {string} author
-   * @param {string} asin
-   * @param {string} region
+   * @param {string} [author]
+   * @param {string} [asin]
+   * @param {string} [region]
    * @param {number} [timeout] response timeout in ms
-   * @returns {Promise<Object[]>}
    */
   async search(title, author, asin, region, timeout = this.#responseTimeout) {
     if (region && !this.regionMap[region]) {

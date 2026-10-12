@@ -40,7 +40,7 @@ class Audnexus {
   /**
    *
    * @param {string} name
-   * @param {string} region
+   * @param {string} [region]
    * @returns {Promise<{asin:string, name:string}[]>}
    */
   authorASINsRequest(name, region) {
