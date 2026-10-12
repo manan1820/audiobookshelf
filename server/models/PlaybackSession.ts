@@ -4,6 +4,7 @@ import type User from './User'
 import type Library from './Library'
 import type Book from './Book'
 import type PodcastEpisode from './PodcastEpisode'
+import type Device from './Device'
 import type {
   PlaybackSessionExtraData,
   PlaybackSessionMediaMetadata,
@@ -95,7 +96,7 @@ export class PlaybackSession
 
   // Associations
   declare user?: NonAttribute<User>
-  declare device?: NonAttribute<{ getOldDevice(): DeviceInfoObject | unknown; id?: string }>
+  declare device?: NonAttribute<Device>
   declare library?: NonAttribute<Library>
   declare book?: NonAttribute<Book>
   declare podcastEpisode?: NonAttribute<PodcastEpisode>

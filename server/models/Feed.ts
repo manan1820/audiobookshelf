@@ -7,6 +7,7 @@ import type User from './User'
 import LibraryItem from './LibraryItem'
 import Series from './Series'
 import Collection from './Collection'
+import type Playlist from './Playlist'
 import type { Book, AudioFileObject, AudioTrack } from './Book'
 import type {
   FeedMetaJsonObject,
@@ -106,9 +107,9 @@ export class Feed
   declare user?: NonAttribute<User>
   declare entity?: NonAttribute<LibraryItem | Collection | Series | object> | null
   declare libraryItem?: NonAttribute<LibraryItem>
-  declare collection?: NonAttribute<unknown>
-  declare series?: NonAttribute<unknown>
-  declare playlist?: NonAttribute<unknown>
+  declare collection?: NonAttribute<Collection>
+  declare series?: NonAttribute<Series>
+  declare playlist?: NonAttribute<Playlist>
 
   static async removeById(feedId: string): Promise<boolean> {
     const deletedCount = await this.destroy({
