@@ -399,3 +399,372 @@ export interface MediaProgressExtraData {
   libraryItemId?: string | null
   progress?: number | null
 }
+
+export interface MediaProgressOldJsonObject {
+  id: string
+  userId: string
+  libraryItemId: string | null
+  episodeId: string | null
+  mediaItemId: string
+  mediaItemType: string
+  duration: number
+  progress: number
+  currentTime: number
+  isFinished: boolean
+  hideFromContinueListening: boolean
+  ebookLocation: string | null
+  ebookProgress: number | null
+  lastUpdate: number
+  startedAt: number
+  finishedAt: number | null
+  displayTitle?: string | null
+  displaySubtitle?: string | null
+  coverPath?: string | null
+  mediaUpdatedAt?: Date | number | null
+}
+
+// ==========================================
+// 6. Podcast & PodcastEpisode DTOs
+// ==========================================
+
+export interface PodcastEpisodeExtraData {
+  guid?: string | null
+  oldEpisodeId?: string | null
+}
+
+export interface PodcastEpisodeEnclosure {
+  url: string
+  type: string | null
+  length: string | null
+}
+
+export interface PodcastEpisodeOldJsonObject {
+  libraryItemId: string
+  podcastId: string
+  id: string
+  oldEpisodeId: string | null
+  index: number | null
+  season: string | null
+  episode: string | null
+  episodeType: string | null
+  title: string | null
+  subtitle: string | null
+  description: string | null
+  enclosure: PodcastEpisodeEnclosure | null
+  guid: string | null
+  pubDate: string | null
+  chapters: ChapterObject[] | null
+  audioFile: AudioFileObject | null
+  publishedAt: number | null
+  addedAt: number
+  updatedAt: number
+}
+
+export interface PodcastEpisodeOldJsonExpandedObject extends PodcastEpisodeOldJsonObject {
+  audioTrack: AudioTrack | null
+  size: number
+  duration: number
+}
+
+export interface PodcastAbsMetadataJsonObject {
+  tags: string[]
+  title: string
+  author: string | null
+  description: string | null
+  releaseDate: string | null
+  genres: string[]
+  feedURL: string | null
+  imageURL: string | null
+  itunesPageURL: string | null
+  itunesId: string | null
+  itunesArtistId: string | null
+  asin?: string | null
+  language: string | null
+  explicit: boolean
+  podcastType: string | null
+}
+
+export interface PodcastOldMetadataJsonObject {
+  title: string
+  author: string | null
+  description: string | null
+  releaseDate: string | null
+  genres: string[]
+  feedUrl: string | null
+  imageUrl: string | null
+  itunesPageUrl: string | null
+  itunesId: string | null
+  itunesArtistId: string | null
+  explicit: boolean
+  language: string | null
+  type: string | null
+}
+
+export interface PodcastOldMetadataExpandedJsonObject extends PodcastOldMetadataJsonObject {
+  titleIgnorePrefix: string
+}
+
+export interface PodcastOldJsonObject {
+  id: string
+  libraryItemId: string
+  metadata: PodcastOldMetadataJsonObject
+  coverPath: string | null
+  tags: string[]
+  episodes: PodcastEpisodeOldJsonObject[]
+  autoDownloadEpisodes: boolean
+  autoDownloadSchedule: string | null
+  lastEpisodeCheck: number | null
+  maxEpisodesToKeep: number
+  maxNewEpisodesToDownload: number
+}
+
+export interface PodcastOldJsonMinifiedObject {
+  id: string
+  metadata: PodcastOldMetadataExpandedJsonObject
+  coverPath: string | null
+  tags: string[]
+  numEpisodes: number
+  autoDownloadEpisodes: boolean
+  autoDownloadSchedule: string | null
+  lastEpisodeCheck: number | null
+  maxEpisodesToKeep: number
+  maxNewEpisodesToDownload: number
+  size: number
+}
+
+export interface PodcastOldJsonExpandedObject extends PodcastOldJsonMinifiedObject {
+  libraryItemId: string
+  episodes: PodcastEpisodeOldJsonExpandedObject[]
+}
+
+// ==========================================
+// 7. PlaybackSession DTOs
+// ==========================================
+
+export interface PlaybackSessionExtraData {
+  libraryItemId?: string | null
+}
+
+export interface PlaybackSessionMediaMetadata {
+  title?: string | null
+  subtitle?: string | null
+  author?: string | null
+  authors?: BookAuthorMetadataObject[]
+  narrators?: string[]
+  series?: BookSeriesMetadataObject[]
+  genres?: string[]
+  publishedYear?: string | null
+  publishedDate?: string | null
+  publisher?: string | null
+  description?: string | null
+  isbn?: string | null
+  asin?: string | null
+  language?: string | null
+  explicit?: boolean
+  abridged?: boolean
+  feedUrl?: string | null
+  imageUrl?: string | null
+  itunesPageUrl?: string | null
+  itunesId?: string | null
+  itunesArtistId?: string | null
+  type?: string | null
+  [key: string]: string | number | boolean | BookAuthorMetadataObject[] | BookSeriesMetadataObject[] | string[] | null | undefined
+}
+
+// ==========================================
+// 8. Feed & FeedEpisode DTOs
+// ==========================================
+
+export interface FeedEpisodeEnclosure {
+  url: string | null
+  size: number | null
+  type: string | null
+}
+
+export interface FeedEpisodeOldJsonObject {
+  id: string
+  title: string | null
+  description: string | null
+  enclosure: FeedEpisodeEnclosure
+  pubDate: string | null
+  link: string | null
+  author: string | null
+  explicit: boolean
+  duration: number | null
+  season: string | null
+  episode: string | null
+  episodeType: string | null
+  fullPath: string | null
+}
+
+export interface FeedEpisodeCustomElement {
+  [tag: string]: string | number | boolean | { _cdata: string } | null | undefined
+}
+
+export interface FeedEpisodeRssData {
+  title: string | null
+  description: string
+  url: string
+  guid: string
+  author: string | null
+  date: string | null
+  enclosure: {
+    url: string
+    type: string | null
+    size: number | null
+  }
+  custom_elements: FeedEpisodeCustomElement[]
+}
+
+export interface FeedMetaJsonObject {
+  title: string
+  description: string | null
+  author: string | null
+  imageUrl: string | null
+  feedUrl: string
+  link: string | null
+  explicit: boolean
+  type: string | null
+  language: string | null
+  preventIndexing: boolean
+  ownerName: string | null
+  ownerEmail: string | null
+}
+
+export interface FeedMinifiedMetaJsonObject {
+  title: string
+  description: string | null
+  preventIndexing: boolean
+  ownerName: string | null
+  ownerEmail: string | null
+}
+
+export interface FeedOldJsonObject {
+  id: string
+  slug: string
+  userId: string | null
+  entityType: string
+  entityId: string
+  entityUpdatedAt: number | null
+  coverPath: string | null
+  meta: FeedMetaJsonObject
+  serverAddress: string
+  feedUrl: string
+  episodes: FeedEpisodeOldJsonObject[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface FeedOldJsonMinifiedObject {
+  id: string
+  entityType: string
+  entityId: string
+  feedUrl: string
+  meta: FeedMinifiedMetaJsonObject
+}
+
+// ==========================================
+// 9. LibraryItem DTOs
+// ==========================================
+
+export interface LibraryFileObject {
+  ino: string
+  isSupplementary?: boolean
+  addedAt: number
+  updatedAt: number
+  fileType?: string
+  metadata: {
+    filename: string
+    ext: string
+    path: string
+    relPath: string
+    size: number
+    mtimeMs: number
+    ctimeMs: number
+    birthtimeMs: number
+  }
+}
+
+export interface LibraryItemExtraData {
+  oldLibraryItemId?: string | null
+}
+
+export interface LibraryItemOldJsonObject {
+  id: string
+  ino: string | null
+  oldLibraryItemId: string | null
+  libraryId: string
+  folderId: string | null
+  path: string
+  relPath: string
+  isFile: boolean
+  mtimeMs?: number
+  ctimeMs?: number
+  birthtimeMs?: number
+  addedAt: number
+  updatedAt: number
+  lastScan?: number
+  scanVersion?: string | null
+  isMissing: boolean
+  isInvalid: boolean
+  mediaType: string
+  media: BookOldJsonObject | PodcastOldJsonObject
+  libraryFiles: LibraryFileObject[]
+}
+
+export interface LibraryItemOldJsonMinifiedObject {
+  id: string
+  ino: string | null
+  oldLibraryItemId: string | null
+  libraryId: string
+  folderId: string | null
+  path: string
+  relPath: string
+  isFile: boolean
+  mtimeMs?: number
+  ctimeMs?: number
+  birthtimeMs?: number
+  addedAt: number
+  updatedAt: number
+  isMissing: boolean
+  isInvalid: boolean
+  mediaType: string
+  media: BookOldJsonMinifiedObject | PodcastOldJsonMinifiedObject
+  numFiles: number
+  size: number | bigint | null | undefined
+  collapsedSeries?: unknown
+  rssFeed?: unknown
+  numEpisodesIncomplete?: number
+  mediaItemShare?: unknown
+}
+
+export interface LibraryItemOldJsonExpandedObject extends Omit<LibraryItemOldJsonMinifiedObject, 'media'> {
+  lastScan?: number
+  scanVersion?: string | null
+  media?: BookOldJsonExpandedObject | PodcastOldJsonExpandedObject
+  libraryFiles: LibraryFileObject[]
+}
+
+export interface PersonalizedShelf {
+  id: string
+  label: string
+  labelStringKey: string
+  type: string
+  entities: unknown[]
+  total?: number
+  category?: string
+}
+
+export interface LibraryFilterOptions {
+  limit?: number
+  page?: number
+  sort?: string
+  desc?: number | boolean
+  filter?: string
+  search?: string
+  minified?: boolean
+  collapseSeries?: boolean
+  include?: string
+  [key: string]: unknown
+}
+

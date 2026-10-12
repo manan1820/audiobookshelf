@@ -4,6 +4,9 @@ import type User from './User'
 import type Library from './Library'
 import type Book from './Book'
 import type PodcastEpisode from './PodcastEpisode'
+import type { PlaybackSessionExtraData, PlaybackSessionMediaMetadata } from '../types'
+
+export type { PlaybackSessionExtraData, PlaybackSessionMediaMetadata }
 
 export interface PlaybackSessionAttributes {
   id: string
@@ -19,10 +22,10 @@ export interface PlaybackSessionAttributes {
   serverVersion: string | null
   coverPath: string | null
   timeListening: number
-  mediaMetadata: Record<string, unknown> | null
+  mediaMetadata: PlaybackSessionMediaMetadata | null
   date: string | null
   dayOfWeek: string | null
-  extraData: Record<string, unknown> | null
+  extraData: PlaybackSessionExtraData | null
   userId?: string | null
   deviceId?: string | null
   libraryId?: string | null
@@ -72,10 +75,10 @@ export class PlaybackSession
   declare serverVersion: string | null
   declare coverPath: string | null
   declare timeListening: number
-  declare mediaMetadata: Record<string, unknown> | null
+  declare mediaMetadata: PlaybackSessionMediaMetadata | null
   declare date: string | null
   declare dayOfWeek: string | null
-  declare extraData: Record<string, unknown> | null
+  declare extraData: PlaybackSessionExtraData | null
   declare userId: string | null
   declare deviceId: string | null
   declare libraryId: string | null
@@ -186,7 +189,7 @@ export class PlaybackSession
     deviceInfo?: { id?: string } | null
     timeListening?: number
     coverPath?: string | null
-    mediaMetadata?: Record<string, unknown> | null
+    mediaMetadata?: PlaybackSessionMediaMetadata | null
     date?: string | null
     dayOfWeek?: string | null
     libraryItemId?: string | null
@@ -216,7 +219,7 @@ export class PlaybackSession
     deviceInfo?: { id?: string } | null
     timeListening?: number
     coverPath?: string | null
-    mediaMetadata?: Record<string, unknown> | null
+    mediaMetadata?: PlaybackSessionMediaMetadata | null
     date?: string | null
     dayOfWeek?: string | null
     libraryItemId?: string | null
@@ -249,7 +252,7 @@ export class PlaybackSession
     deviceInfo?: { id?: string } | null
     timeListening?: number
     coverPath?: string | null
-    mediaMetadata?: Record<string, unknown> | null
+    mediaMetadata?: PlaybackSessionMediaMetadata | null
     date?: string | null
     dayOfWeek?: string | null
     libraryItemId?: string | null
@@ -287,11 +290,15 @@ export class PlaybackSession
 
   getMediaItem(options?: unknown): Promise<unknown> {
     if (!this.mediaItemType) return Promise.resolve(null)
-    const upperFirst = this.mediaItemType.charAt(0).toUpperCase() + this.mediaItemType.slice(1)
-    const mixinMethodName = `get${upperFirst}`
-    const method = (this as Record<string, unknown>)[mixinMethodName]
-    if (typeof method === 'function') {
-      return Promise.resolve(method.call(this, options))
+    const self = this as {
+      getBook?: (options?: unknown) => Promise<unknown>
+      getPodcastEpisode?: (options?: unknown) => Promise<unknown>
+    }
+    if (this.mediaItemType === 'book' && typeof self.getBook === 'function') {
+      return self.getBook(options)
+    }
+    if (this.mediaItemType === 'podcastEpisode' && typeof self.getPodcastEpisode === 'function') {
+      return self.getPodcastEpisode(options)
     }
     return Promise.resolve(null)
   }

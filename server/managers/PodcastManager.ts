@@ -320,8 +320,10 @@ class PodcastManager {
     }
 
     SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
-    const podcastEpisodeExpanded = podcastEpisode.toOldJSONExpanded(libraryItem.id) as Record<string, unknown>
-    podcastEpisodeExpanded.libraryItem = libraryItem.toOldJSONExpanded()
+    const podcastEpisodeExpanded = {
+      ...podcastEpisode.toOldJSONExpanded(libraryItem.id),
+      libraryItem: libraryItem.toOldJSONExpanded()
+    }
     SocketAuthority.emitter('episode_added', podcastEpisodeExpanded)
 
     if (this.currentDownload.isAutoDownload) {

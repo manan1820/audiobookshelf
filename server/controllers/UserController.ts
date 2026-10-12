@@ -7,11 +7,11 @@ import Database from '../Database'
 import { toNumber } from '../utils/index'
 import type User from '../models/User'
 import type { UserPermissions } from '../models/User'
-import type { UserPermissionsObject, UserOldJsonForBrowserObject } from '../types'
+import type { UserPermissionsObject, UserOldJsonForBrowserObject, MediaProgressOldJsonObject } from '../types'
 import type MediaProgress from '../models/MediaProgress'
 
 interface RequestWithUser extends Request {
-  user?: User | null
+  user?: User
 }
 
 interface UserControllerRequest extends RequestWithUser {
@@ -104,9 +104,7 @@ class UserController {
     })) as MediaProgress[]
 
     const oldMediaProgresses = mediaProgresses.map((mp) => {
-      const oldMediaProgress = (
-        typeof mp.getOldMediaProgress === 'function' ? mp.getOldMediaProgress() : mp.toJSON()
-      ) as Record<string, unknown>
+      const oldMediaProgress: MediaProgressOldJsonObject = mp.getOldMediaProgress()
       const mediaItem = (
         mp as MediaProgress & {
           mediaItem?: {

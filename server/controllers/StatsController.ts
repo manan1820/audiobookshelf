@@ -4,7 +4,7 @@ import adminStats from '../utils/queries/adminStats'
 import type User from '../models/User'
 
 interface RequestWithUser extends Request {
-  user?: User | null
+  user?: User
 }
 
 class StatsController {

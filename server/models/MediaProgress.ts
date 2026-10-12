@@ -5,6 +5,9 @@ import type { ProgressUpdatePayload } from './User'
 import type User from './User'
 import type Book from './Book'
 import type PodcastEpisode from './PodcastEpisode'
+import type { MediaProgressExtraData, MediaProgressOldJsonObject } from '../types'
+
+export type { MediaProgressExtraData, MediaProgressOldJsonObject }
 
 export interface MediaProgressAttributes {
   id: string
@@ -17,7 +20,7 @@ export interface MediaProgressAttributes {
   ebookLocation: string | null
   ebookProgress: number | null
   finishedAt: Date | null
-  extraData: Record<string, unknown> | null
+  extraData: MediaProgressExtraData | null
   userId: string
   podcastId: string | null
   createdAt?: Date
@@ -55,7 +58,7 @@ export class MediaProgress
   declare ebookLocation: string | null
   declare ebookProgress: number | null
   declare finishedAt: Date | null
-  declare extraData: Record<string, unknown> | null
+  declare extraData: MediaProgressExtraData | null
   declare userId: string
   declare podcastId: string | null
   declare readonly createdAt: Date
@@ -179,16 +182,20 @@ export class MediaProgress
 
   getMediaItem(options?: unknown): Promise<unknown> {
     if (!this.mediaItemType) return Promise.resolve(null)
-    const upperFirst = this.mediaItemType.charAt(0).toUpperCase() + this.mediaItemType.slice(1)
-    const mixinMethodName = `get${upperFirst}`
-    const method = (this as Record<string, unknown>)[mixinMethodName]
-    if (typeof method === 'function') {
-      return Promise.resolve(method.call(this, options))
+    const self = this as {
+      getBook?: (options?: unknown) => Promise<unknown>
+      getPodcastEpisode?: (options?: unknown) => Promise<unknown>
+    }
+    if (this.mediaItemType === 'book' && typeof self.getBook === 'function') {
+      return self.getBook(options)
+    }
+    if (this.mediaItemType === 'podcastEpisode' && typeof self.getPodcastEpisode === 'function') {
+      return self.getPodcastEpisode(options)
     }
     return Promise.resolve(null)
   }
 
-  getOldMediaProgress(): Record<string, unknown> {
+  getOldMediaProgress(): MediaProgressOldJsonObject {
     const isPodcastEpisode = this.mediaItemType === 'podcastEpisode'
 
     return {
@@ -244,7 +251,7 @@ export class MediaProgress
       this.changed('extraData', true)
     }
 
-    const setPayload: Record<string, unknown> = {}
+    const setPayload: Partial<MediaProgressAttributes> = {}
     if (progressPayload.currentTime !== undefined && progressPayload.currentTime !== null) {
       setPayload.currentTime = progressPayload.currentTime
     }

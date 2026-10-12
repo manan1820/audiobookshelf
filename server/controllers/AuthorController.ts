@@ -12,7 +12,7 @@ import AuthorFinder from '../finders/AuthorFinder'
 
 import { reqSupportsWebp, isValidASIN, clampPositiveInt } from '../utils/index'
 import type Author from '../models/Author'
-import type { AuthorOldJsonObject } from '../types'
+import type { AuthorOldJsonObject, LibraryItemOldJsonMinifiedObject } from '../types'
 import type User from '../models/User'
 import type LibraryItem from '../models/LibraryItem'
 
@@ -21,14 +21,14 @@ const naturalSort = createNewSortInstance({
 })
 
 interface AuthorControllerRequest extends Request {
-  user?: User | null
+  user?: User
   author?: Author | null
 }
 
 interface SeriesMapItem {
   id: string
   name: string
-  items: Array<Record<string, unknown>>
+  items: Array<LibraryItemOldJsonMinifiedObject>
 }
 
 class AuthorController {
@@ -67,8 +67,8 @@ class AuthorController {
           }
           if (media?.series?.length) {
             media.series.forEach((series) => {
-              const itemWithSeries = li.toOldJSONMinified() as {
-                media: { metadata: Record<string, unknown> }
+              const itemWithSeries = li.toOldJSONMinified() as LibraryItemOldJsonMinifiedObject & {
+                media: { metadata: { series?: unknown } }
               }
               itemWithSeries.media.metadata.series = {
                 id: series.id,

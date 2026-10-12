@@ -22,7 +22,7 @@ import type { PodcastCreateRequestPayload } from '../models/Podcast'
 import type PodcastManager from '../managers/PodcastManager'
 
 interface RequestWithUser extends Request {
-  user?: User | null
+  user?: User
 }
 
 interface RequestWithLibraryItem extends RequestWithUser {

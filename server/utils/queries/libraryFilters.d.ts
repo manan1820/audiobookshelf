@@ -2,6 +2,7 @@ import type Library from '../../models/Library'
 import type User from '../../models/User'
 import type LibraryItem from '../../models/LibraryItem'
 import type Author from '../../models/Author'
+import type { LibraryFilterOptions } from '../../types'
 
 export interface FilteredLibraryItemsResult {
   libraryItems: LibraryItem[]
@@ -18,7 +19,7 @@ export function decode(text: string): string | null
 export function getFilteredLibraryItems(
   libraryId: string,
   user: User,
-  options: Record<string, unknown>
+  options: LibraryFilterOptions
 ): Promise<FilteredLibraryItemsResult>
 
 export function getMediaItemsInProgress(

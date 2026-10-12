@@ -7,6 +7,19 @@ import type Feed from './Feed'
 import type PodcastEpisode from './PodcastEpisode'
 import type LibraryItem from './LibraryItem'
 import type { AudioFileObject, AudioTrack, ChapterObject, Book } from './Book'
+import type {
+  FeedEpisodeEnclosure,
+  FeedEpisodeOldJsonObject,
+  FeedEpisodeCustomElement,
+  FeedEpisodeRssData
+} from '../types'
+
+export type {
+  FeedEpisodeEnclosure,
+  FeedEpisodeOldJsonObject,
+  FeedEpisodeCustomElement,
+  FeedEpisodeRssData
+}
 
 export interface FeedEpisodeAttributes {
   id: string
@@ -446,10 +459,10 @@ export class FeedEpisode
     return FeedEpisode
   }
 
-  getOldEpisode(): Record<string, unknown> {
-    const enclosure = {
+  getOldEpisode(): FeedEpisodeOldJsonObject {
+    const enclosure: FeedEpisodeEnclosure = {
       url: this.enclosureURL,
-      size: this.enclosureSize,
+      size: typeof this.enclosureSize === 'bigint' ? Number(this.enclosureSize) : this.enclosureSize,
       type: this.enclosureType
     }
     return {
@@ -469,8 +482,8 @@ export class FeedEpisode
     }
   }
 
-  getRSSData(hostPrefix: string): Record<string, unknown> {
-    const rawCustomElements: Array<Record<string, unknown>> = [
+  getRSSData(hostPrefix: string): FeedEpisodeRssData {
+    const rawCustomElements: FeedEpisodeCustomElement[] = [
       { 'itunes:author': this.author ?? null },
       { 'itunes:duration': Math.round(Number(this.duration ?? 0)) },
       { 'itunes:explicit': Boolean(this.explicit) },
@@ -478,7 +491,7 @@ export class FeedEpisode
       { 'itunes:season': this.season ?? null },
       { 'itunes:episode': this.episode ?? null }
     ]
-    const customElements = rawCustomElements.filter((element) => {
+    const customElements: FeedEpisodeCustomElement[] = rawCustomElements.filter((element) => {
       return Object.values(element)[0] !== null
     })
 
@@ -496,7 +509,7 @@ export class FeedEpisode
       enclosure: {
         url: `${hostPrefix}${this.enclosureURL}`,
         type: this.enclosureType,
-        size: this.enclosureSize
+        size: typeof this.enclosureSize === 'bigint' ? Number(this.enclosureSize) : this.enclosureSize
       },
       custom_elements: customElements
     }

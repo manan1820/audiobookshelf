@@ -4,6 +4,20 @@ import type Podcast from './Podcast'
 import type { AudioFileObject, AudioTrack } from './Book'
 import type { RssPodcastEpisode } from '../utils/podcastUtils'
 
+import type {
+  PodcastEpisodeExtraData,
+  PodcastEpisodeEnclosure,
+  PodcastEpisodeOldJsonObject,
+  PodcastEpisodeOldJsonExpandedObject
+} from '../types'
+
+export type {
+  PodcastEpisodeExtraData,
+  PodcastEpisodeEnclosure,
+  PodcastEpisodeOldJsonObject,
+  PodcastEpisodeOldJsonExpandedObject
+}
+
 export interface ChapterObject {
   id: number
   start: number
@@ -27,7 +41,7 @@ export interface PodcastEpisodeAttributes {
   publishedAt: Date | null
   audioFile: AudioFileObject | null
   chapters: ChapterObject[] | null
-  extraData: Record<string, unknown> | null
+  extraData: PodcastEpisodeExtraData | null
   podcastId?: string
   createdAt?: Date
   updatedAt?: Date
@@ -76,7 +90,7 @@ export class PodcastEpisode
   declare publishedAt: Date | null
   declare audioFile: AudioFileObject | null
   declare chapters: ChapterObject[] | null
-  declare extraData: Record<string, unknown> | null
+  declare extraData: PodcastEpisodeExtraData | null
   declare podcastId: string
   declare readonly createdAt: Date
   declare readonly updatedAt: Date
@@ -89,7 +103,7 @@ export class PodcastEpisode
     podcastId: string,
     audioFile: { toJSON(): unknown; chapters?: ChapterObject[] }
   ): Promise<PodcastEpisode> {
-    const extraData: Record<string, unknown> = {}
+    const extraData: PodcastEpisodeExtraData = {}
     if (rssPodcastEpisode.guid) {
       extraData.guid = rssPodcastEpisode.guid
     }
@@ -221,12 +235,12 @@ export class PodcastEpisode
     return track
   }
 
-  toOldJSON(libraryItemId: string): Record<string, unknown> {
+  toOldJSON(libraryItemId: string): PodcastEpisodeOldJsonObject {
     if (!libraryItemId) {
       throw new Error('[PodcastEpisode] Cannot convert to old JSON because libraryItemId is not provided')
     }
 
-    let enclosure: Record<string, unknown> | null = null
+    let enclosure: PodcastEpisodeEnclosure | null = null
     if (this.enclosureURL) {
       enclosure = {
         url: this.enclosureURL,
@@ -258,12 +272,13 @@ export class PodcastEpisode
     }
   }
 
-  toOldJSONExpanded(libraryItemId: string): Record<string, unknown> {
-    const json = this.toOldJSON(libraryItemId)
-    json.audioTrack = this.getAudioTrack(libraryItemId)
-    json.size = this.size
-    json.duration = this.duration
-    return json
+  toOldJSONExpanded(libraryItemId: string): PodcastEpisodeOldJsonExpandedObject {
+    return {
+      ...this.toOldJSON(libraryItemId),
+      audioTrack: this.getAudioTrack(libraryItemId),
+      size: this.size,
+      duration: this.duration
+    }
   }
 }
 

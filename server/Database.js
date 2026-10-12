@@ -173,8 +173,23 @@ class Database {
    * Connect to db, build models and run migrations
    * @param {boolean} [force=false] Used for testing, drops & re-creates all tables
    */
-  async init(force = false) {
-    this.dbPath = Path.join(global.ConfigPath, 'absdatabase.sqlite')
+  async init(forceOrStorage = false, force = false) {
+    if (typeof forceOrStorage === 'string') {
+      this.dbPath = forceOrStorage
+    } else {
+      force = Boolean(forceOrStorage)
+      this.dbPath = Path.join(global.ConfigPath || '', 'absdatabase.sqlite')
+    }
+
+    if (this.dbPath === ':memory:') {
+      this.isNew = true
+      if (!(await this.connect())) {
+        throw new Error('Database connection failed')
+      }
+      await this.buildModels(force)
+      Logger.info(`[Database] Db initialized with models:`, Object.keys(this.sequelize.models).join(', '))
+      return
+    }
 
     // First check if this is a new database
     this.isNew = !(await this.checkHasDb()) || force

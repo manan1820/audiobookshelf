@@ -1,4 +1,4 @@
-import type User from '../models/User'
+import type UserModel from '../models/User'
 import type Author from '../models/Author'
 import type LibraryItem from '../models/LibraryItem'
 import type Library from '../models/Library'
@@ -13,6 +13,9 @@ import type Device from '../models/Device'
 
 declare global {
   namespace Express {
+    // eslint-disable-next-line @typescript-eslint/no-empty-interface
+    interface User extends UserModel {}
+
     interface UserTokenPayload {
       id: string
       username: string
@@ -22,7 +25,6 @@ declare global {
     }
 
     interface Request {
-      user?: User | null
       userToken?: string | null
       tokenPayload?: UserTokenPayload | null
       clientIp?: string | null

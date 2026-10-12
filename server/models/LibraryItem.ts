@@ -22,25 +22,29 @@ import type Library from './Library'
 import type LibraryFolder from './LibraryFolder'
 import type User from './User'
 import type Author from './Author'
+import type {
+  LibraryFileObject,
+  LibraryItemExtraData,
+  LibraryItemOldJsonObject,
+  LibraryItemOldJsonMinifiedObject,
+  LibraryItemOldJsonExpandedObject,
+  PersonalizedShelf,
+  LibraryFilterOptions,
+  BookAbsMetadataJsonObject,
+  PodcastAbsMetadataJsonObject
+} from '../types'
+
+export type {
+  LibraryFileObject,
+  LibraryItemExtraData,
+  LibraryItemOldJsonObject,
+  LibraryItemOldJsonMinifiedObject,
+  LibraryItemOldJsonExpandedObject,
+  PersonalizedShelf,
+  LibraryFilterOptions
+}
 
 const filters = libraryFilters
-
-export interface LibraryFileObject {
-  ino: string
-  isSupplementary?: boolean
-  addedAt: number
-  updatedAt: number
-  metadata: {
-    filename: string
-    ext: string
-    path: string
-    relPath: string
-    size: number
-    mtimeMs: number
-    ctimeMs: number
-    birthtimeMs: number
-  }
-}
 
 export interface LibraryItemAttributes {
   id: string
@@ -59,7 +63,7 @@ export interface LibraryItemAttributes {
   lastScan?: Date | null
   lastScanVersion?: string | null
   libraryFiles?: LibraryFileObject[] | null
-  extraData?: Record<string, unknown> | null
+  extraData?: LibraryItemExtraData | null
   libraryId: string
   libraryFolderId?: string | null
   title?: string | null
@@ -115,7 +119,7 @@ export class LibraryItem
   declare lastScan: Date | null
   declare lastScanVersion: string | null
   declare libraryFiles: LibraryFileObject[] | null
-  declare extraData: Record<string, unknown> | null
+  declare extraData: LibraryItemExtraData | null
   declare libraryId: string
   declare libraryFolderId: string | null
   declare title: string | null
@@ -126,7 +130,7 @@ export class LibraryItem
   declare readonly updatedAt: Date
 
   // Expanded properties
-  declare media?: NonAttribute<Book | Podcast | Record<string, unknown>>
+  declare media?: NonAttribute<Book | Podcast | null>
   declare library?: NonAttribute<Library>
   declare libraryFolder?: NonAttribute<LibraryFolder>
   declare book?: NonAttribute<Book>
@@ -330,8 +334,8 @@ export class LibraryItem
   static async getByFilterAndSort(
     library: Library,
     user: User,
-    options: Record<string, unknown>
-  ): Promise<{ libraryItems: Record<string, unknown>[]; count: number }> {
+    options: LibraryFilterOptions
+  ): Promise<{ libraryItems: LibraryItemOldJsonMinifiedObject[]; count: number }> {
     const start = Date.now()
     const { libraryItems, count } = await filters.getFilteredLibraryItems(
       library.id,
@@ -359,7 +363,7 @@ export class LibraryItem
           oldLibraryItem.collapsedSeries = liAny.collapsedSeries
         }
         if (liAny.series && oldLibraryItem.media) {
-          const mediaMetadata = (oldLibraryItem.media as { metadata?: Record<string, unknown> }).metadata
+          const mediaMetadata = (oldLibraryItem.media as { metadata?: { series?: unknown } }).metadata
           if (mediaMetadata) {
             mediaMetadata.series = liAny.series
           }
@@ -369,10 +373,11 @@ export class LibraryItem
         }
         const mediaAny = li.media as { numEpisodes?: number; size?: number } | undefined
         if (mediaAny?.numEpisodes && oldLibraryItem.media) {
-          ;(oldLibraryItem.media as Record<string, unknown>).numEpisodes = mediaAny.numEpisodes
+          ;(oldLibraryItem.media as { numEpisodes?: number }).numEpisodes = mediaAny.numEpisodes
         }
-        if (li.size && oldLibraryItem.media && !(oldLibraryItem.media as Record<string, unknown>).size) {
-          ;(oldLibraryItem.media as Record<string, unknown>).size = li.size
+        const oldMedia = oldLibraryItem.media as { size?: number } | undefined
+        if (li.size && oldMedia && !oldMedia.size) {
+          oldMedia.size = Number(li.size)
         }
         if (liAny.numEpisodesIncomplete) {
           oldLibraryItem.numEpisodesIncomplete = liAny.numEpisodesIncomplete
@@ -392,9 +397,9 @@ export class LibraryItem
     user: User,
     include: string[],
     limit: number
-  ): Promise<Record<string, unknown>[]> {
+  ): Promise<PersonalizedShelf[]> {
     const fullStart = Date.now()
-    const shelves: Record<string, unknown>[] = []
+    const shelves: PersonalizedShelf[] = []
 
     const timed = async <T>(loader: () => Promise<T>): Promise<{ payload: T; elapsedSeconds: string }> => {
       const start = Date.now()
@@ -683,12 +688,9 @@ export class LibraryItem
     const fileFormat = serverSettings?.metadataFileFormat ?? 'json'
     const metadataFilePath = Path.join(metadataPath, `metadata.${fileFormat}`)
 
-    const mediaExpanded = (this.media || (await this.getMediaExpanded())) as
-      | Book
-      | Podcast
-      | Record<string, unknown>
+    const mediaExpanded = (this.media || (await this.getMediaExpanded())) as Book | Podcast | null
 
-    let jsonObject: Record<string, unknown> = {}
+    let jsonObject: BookAbsMetadataJsonObject | PodcastAbsMetadataJsonObject
     if (this.mediaType === 'book') {
       const bMedia = mediaExpanded as Book
       jsonObject = {
@@ -697,7 +699,7 @@ export class LibraryItem
         title: bMedia.title,
         subtitle: bMedia.subtitle,
         authors: (bMedia.authors ?? []).map((a) => a.name),
-        narrators: bMedia.narrators,
+        narrators: bMedia.narrators ?? [],
         series: (bMedia.series ?? []).map((se) => {
           const sequence = se.bookSeries?.sequence || ''
           if (!sequence) return se.name
@@ -715,23 +717,7 @@ export class LibraryItem
         abridged: !!bMedia.abridged
       }
     } else {
-      const pMedia = mediaExpanded as {
-        tags?: string[]
-        title?: string
-        author?: string
-        description?: string
-        releaseDate?: string
-        genres?: string[]
-        feedURL?: string
-        imageURL?: string
-        itunesPageURL?: string
-        itunesId?: string
-        itunesArtistId?: string
-        asin?: string
-        language?: string
-        explicit?: boolean
-        podcastType?: string
-      }
+      const pMedia = mediaExpanded as Podcast & { asin?: string | null }
       jsonObject = {
         tags: pMedia.tags ?? [],
         title: pMedia.title,
@@ -744,7 +730,7 @@ export class LibraryItem
         itunesPageURL: pMedia.itunesPageURL,
         itunesId: pMedia.itunesId,
         itunesArtistId: pMedia.itunesArtistId,
-        asin: pMedia.asin,
+        asin: pMedia.asin ?? null,
         language: pMedia.language,
         explicit: !!pMedia.explicit,
         podcastType: pMedia.podcastType
@@ -881,12 +867,16 @@ export class LibraryItem
       const instances = Array.isArray(findResult) ? findResult : [findResult]
       for (const instance of instances) {
         const inst = instance as LibraryItem & {
-          book?: unknown
-          podcast?: unknown
-          dataValues: Record<string, unknown>
+          book?: Book | null
+          podcast?: Podcast | null
+          dataValues: LibraryItemAttributes & {
+            book?: Book | null
+            podcast?: Podcast | null
+            media?: Book | Podcast | null
+          }
         }
         if (inst.mediaType === 'book' && inst.book !== undefined) {
-          inst.media = inst.book as Book
+          inst.media = inst.book
           inst.dataValues.media = inst.dataValues.book
         } else if (inst.mediaType === 'podcast' && inst.podcast !== undefined) {
           inst.media = inst.podcast
@@ -930,12 +920,15 @@ export class LibraryItem
 
   getMedia(options?: FindOptions): Promise<Podcast | Book | null> {
     if (!this.mediaType) return Promise.resolve(null)
-    const uppercaseFirst = (str: string) => (str ? `${str[0]?.toUpperCase() ?? ''}${str.substring(1)}` : '')
-    const mixinMethodName = `get${uppercaseFirst(this.mediaType)}`
-    const self = this as Record<string, unknown>
-    const method = self[mixinMethodName]
-    if (typeof method === 'function') {
-      return (method as (opts?: FindOptions) => Promise<Podcast | Book | null>).call(this, options)
+    const self = this as {
+      getBook?: (options?: FindOptions) => Promise<Book | null>
+      getPodcast?: (options?: FindOptions) => Promise<Podcast | null>
+    }
+    if (this.mediaType === 'book' && typeof self.getBook === 'function') {
+      return self.getBook(options)
+    }
+    if (this.mediaType === 'podcast' && typeof self.getPodcast === 'function') {
+      return self.getPodcast(options)
     }
     return Promise.resolve(null)
   }
@@ -1012,26 +1005,26 @@ export class LibraryItem
     return (this.libraryFiles ?? []).map((lf) => new LibraryFile(lf))
   }
 
-  getLibraryFilesJson(): Record<string, unknown>[] {
-    return (this.libraryFiles ?? []).map((lf) => new LibraryFile(lf).toJSON() as Record<string, unknown>)
+  getLibraryFilesJson(): LibraryFileObject[] {
+    return (this.libraryFiles ?? []).map((lf) => new LibraryFile(lf).toJSON() as LibraryFileObject)
   }
 
-  toOldJSON(): Record<string, unknown> {
+  toOldJSON(): LibraryItemOldJsonObject {
     if (!this.media) {
       throw new Error(`[LibraryItem] Cannot convert to old JSON without media for library item "${this.id}"`)
     }
 
-    const mediaObj = this.media as { toOldJSON: (itemId: string) => unknown }
+    const mediaObj = this.media as Book | Podcast
 
     return {
       id: this.id,
-      ino: this.ino,
+      ino: this.ino ?? null,
       oldLibraryItemId: this.extraData?.oldLibraryItemId ?? null,
       libraryId: this.libraryId,
       folderId: this.libraryFolderId,
       path: this.path,
       relPath: this.relPath,
-      isFile: this.isFile,
+      isFile: !!this.isFile,
       mtimeMs: this.mtime?.valueOf(),
       ctimeMs: this.ctime?.valueOf(),
       birthtimeMs: this.birthtime?.valueOf(),
@@ -1047,22 +1040,22 @@ export class LibraryItem
     }
   }
 
-  toOldJSONMinified(): Record<string, unknown> {
+  toOldJSONMinified(): LibraryItemOldJsonMinifiedObject {
     if (!this.media) {
       throw new Error(`[LibraryItem] Cannot convert to old JSON without media for library item "${this.id}"`)
     }
 
-    const mediaObj = this.media as { toOldJSONMinified: () => unknown }
+    const mediaObj = this.media as Book | Podcast
 
     return {
       id: this.id,
-      ino: this.ino,
+      ino: this.ino ?? null,
       oldLibraryItemId: this.extraData?.oldLibraryItemId ?? null,
       libraryId: this.libraryId,
       folderId: this.libraryFolderId,
       path: this.path,
       relPath: this.relPath,
-      isFile: this.isFile,
+      isFile: !!this.isFile,
       mtimeMs: this.mtime?.valueOf(),
       ctimeMs: this.ctime?.valueOf(),
       birthtimeMs: this.birthtime?.valueOf(),
@@ -1077,8 +1070,8 @@ export class LibraryItem
     }
   }
 
-  toOldJSONExpanded(): Record<string, unknown> {
-    const mediaObj = this.media as { toOldJSONExpanded: (itemId: string) => unknown } | undefined
+  toOldJSONExpanded(): LibraryItemOldJsonExpandedObject {
+    const mediaObj = this.media as Book | Podcast | undefined
     return {
       ...this.toOldJSONMinified(),
       lastScan: this.lastScan?.valueOf(),

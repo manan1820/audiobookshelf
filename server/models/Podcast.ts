@@ -8,6 +8,23 @@ import type LibraryItem from './LibraryItem'
 import type { AudioTrack } from './Book'
 import type { ChapterObject } from './PodcastEpisode'
 import type { RssPodcastEpisode } from '../utils/podcastUtils'
+import type {
+  PodcastAbsMetadataJsonObject,
+  PodcastOldMetadataJsonObject,
+  PodcastOldMetadataExpandedJsonObject,
+  PodcastOldJsonObject,
+  PodcastOldJsonMinifiedObject,
+  PodcastOldJsonExpandedObject
+} from '../types'
+
+export type {
+  PodcastAbsMetadataJsonObject,
+  PodcastOldMetadataJsonObject,
+  PodcastOldMetadataExpandedJsonObject,
+  PodcastOldJsonObject,
+  PodcastOldJsonMinifiedObject,
+  PodcastOldJsonExpandedObject
+}
 
 export interface PodcastAttributes {
   id: string
@@ -287,7 +304,7 @@ export class Podcast
     return this.podcastEpisodes.reduce((total, episode) => total + (episode.size || 0), 0)
   }
 
-  getAbsMetadataJson(): Record<string, unknown> {
+  getAbsMetadataJson(): PodcastAbsMetadataJsonObject {
     return {
       tags: this.tags ?? [],
       title: this.title,
@@ -342,7 +359,19 @@ export class Podcast
           newKey = 'itunesPageURL'
         }
 
-        const propValue = (this as Record<string, unknown>)[newKey]
+        let propValue: string | null = null
+        if (newKey === 'podcastType') propValue = this.podcastType
+        else if (newKey === 'feedURL') propValue = this.feedURL
+        else if (newKey === 'imageURL') propValue = this.imageURL
+        else if (newKey === 'itunesPageURL') propValue = this.itunesPageURL
+        else if (newKey === 'title') propValue = this.title
+        else if (newKey === 'author') propValue = this.author
+        else if (newKey === 'releaseDate') propValue = this.releaseDate
+        else if (newKey === 'description') propValue = this.description
+        else if (newKey === 'itunesId') propValue = this.itunesId
+        else if (newKey === 'itunesArtistId') propValue = this.itunesArtistId
+        else if (newKey === 'language') propValue = this.language
+
         const metaValue = metadata[key]
         if (
           (typeof metaValue === 'string' || metaValue === null) &&
@@ -358,11 +387,20 @@ export class Podcast
             }
           }
 
-          ;(this as Record<string, unknown>)[newKey] = metadata[key] || null
-
-          if (key === 'title') {
+          const valToSet = (metadata[key] as string) || null
+          if (newKey === 'podcastType') this.podcastType = valToSet
+          else if (newKey === 'feedURL') this.feedURL = valToSet
+          else if (newKey === 'imageURL') this.imageURL = valToSet
+          else if (newKey === 'itunesPageURL') this.itunesPageURL = valToSet
+          else if (newKey === 'title') {
+            this.title = valToSet ?? ''
             this.titleIgnorePrefix = getTitleIgnorePrefix(this.title)
-          }
+          } else if (newKey === 'author') this.author = valToSet
+          else if (newKey === 'releaseDate') this.releaseDate = valToSet
+          else if (newKey === 'description') this.description = valToSet
+          else if (newKey === 'itunesId') this.itunesId = valToSet
+          else if (newKey === 'itunesArtistId') this.itunesArtistId = valToSet
+          else if (newKey === 'language') this.language = valToSet
 
           hasUpdates = true
         }
@@ -419,15 +457,20 @@ export class Podcast
       hasUpdates = true
     }
 
-    const numberKeys = ['maxEpisodesToKeep', 'maxNewEpisodesToDownload']
-    numberKeys.forEach((key) => {
-      const numVal = payload[key]
-      const curVal = (this as Record<string, unknown>)[key]
-      if (typeof numVal === 'number' && numVal !== curVal) {
-        ;(this as Record<string, unknown>)[key] = numVal
-        hasUpdates = true
-      }
-    })
+    if (
+      typeof payload.maxEpisodesToKeep === 'number' &&
+      payload.maxEpisodesToKeep !== this.maxEpisodesToKeep
+    ) {
+      this.maxEpisodesToKeep = payload.maxEpisodesToKeep
+      hasUpdates = true
+    }
+    if (
+      typeof payload.maxNewEpisodesToDownload === 'number' &&
+      payload.maxNewEpisodesToDownload !== this.maxNewEpisodesToDownload
+    ) {
+      this.maxNewEpisodesToDownload = payload.maxNewEpisodesToDownload
+      hasUpdates = true
+    }
 
     if (hasUpdates) {
       Logger.debug('[Podcast] changed keys:', this.changed())
@@ -512,7 +555,7 @@ export class Podcast
     return Boolean(this.podcastEpisodes?.some((ep) => ep.checkMatchesGuidOrEnclosureUrl(guid, url)))
   }
 
-  oldMetadataToJSON(): Record<string, unknown> {
+  oldMetadataToJSON(): PodcastOldMetadataJsonObject {
     return {
       title: this.title,
       author: this.author,
@@ -530,13 +573,14 @@ export class Podcast
     }
   }
 
-  oldMetadataToJSONExpanded(): Record<string, unknown> {
-    const oldMetadataJSON = this.oldMetadataToJSON()
-    oldMetadataJSON.titleIgnorePrefix = getTitlePrefixAtEnd(this.title)
-    return oldMetadataJSON
+  oldMetadataToJSONExpanded(): PodcastOldMetadataExpandedJsonObject {
+    return {
+      ...this.oldMetadataToJSON(),
+      titleIgnorePrefix: getTitlePrefixAtEnd(this.title)
+    }
   }
 
-  toOldJSON(libraryItemId: string): Record<string, unknown> {
+  toOldJSON(libraryItemId: string): PodcastOldJsonObject {
     if (!libraryItemId) {
       throw new Error('[Podcast] Cannot convert to old JSON because libraryItemId is not provided')
     }
@@ -559,7 +603,7 @@ export class Podcast
     }
   }
 
-  toOldJSONMinified(): Record<string, unknown> {
+  toOldJSONMinified(): PodcastOldJsonMinifiedObject {
     return {
       id: this.id,
       metadata: this.oldMetadataToJSONExpanded(),
@@ -575,7 +619,7 @@ export class Podcast
     }
   }
 
-  toOldJSONExpanded(libraryItemId: string): Record<string, unknown> {
+  toOldJSONExpanded(libraryItemId: string): PodcastOldJsonExpandedObject {
     if (!libraryItemId) {
       throw new Error('[Podcast] Cannot convert to old JSON because libraryItemId is not provided')
     }

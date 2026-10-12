@@ -8,6 +8,19 @@ import LibraryItem from './LibraryItem'
 import Series from './Series'
 import Collection from './Collection'
 import type { Book, AudioFileObject, AudioTrack } from './Book'
+import type {
+  FeedMetaJsonObject,
+  FeedMinifiedMetaJsonObject,
+  FeedOldJsonObject,
+  FeedOldJsonMinifiedObject
+} from '../types'
+
+export type {
+  FeedMetaJsonObject,
+  FeedMinifiedMetaJsonObject,
+  FeedOldJsonObject,
+  FeedOldJsonMinifiedObject
+}
 
 export interface FeedOptions {
   preventIndexing?: boolean
@@ -91,7 +104,7 @@ export class Feed
   // Expanded properties
   declare feedEpisodes?: NonAttribute<FeedEpisode[]>
   declare user?: NonAttribute<User>
-  declare entity?: NonAttribute<LibraryItem | Collection | Series | Record<string, unknown> | null>
+  declare entity?: NonAttribute<LibraryItem | Collection | Series | object> | null
   declare libraryItem?: NonAttribute<LibraryItem>
   declare collection?: NonAttribute<unknown>
   declare series?: NonAttribute<unknown>
@@ -785,11 +798,23 @@ export class Feed
 
   getEntity(options?: unknown): Promise<unknown> {
     if (!this.entityType) return Promise.resolve(null)
-    const upperFirst = this.entityType.charAt(0).toUpperCase() + this.entityType.slice(1)
-    const mixinMethodName = `get${upperFirst}`
-    const method = (this as Record<string, unknown>)[mixinMethodName]
-    if (typeof method === 'function') {
-      return Promise.resolve(method.call(this, options))
+    const self = this as {
+      getLibraryItem?: (options?: unknown) => Promise<unknown>
+      getCollection?: (options?: unknown) => Promise<unknown>
+      getSeries?: (options?: unknown) => Promise<unknown>
+      getPlaylist?: (options?: unknown) => Promise<unknown>
+    }
+    if (this.entityType === 'libraryItem' && typeof self.getLibraryItem === 'function') {
+      return self.getLibraryItem(options)
+    }
+    if (this.entityType === 'collection' && typeof self.getCollection === 'function') {
+      return self.getCollection(options)
+    }
+    if (this.entityType === 'series' && typeof self.getSeries === 'function') {
+      return self.getSeries(options)
+    }
+    if (this.entityType === 'playlist' && typeof self.getPlaylist === 'function') {
+      return self.getPlaylist(options)
     }
     return Promise.resolve(null)
   }
@@ -858,7 +883,7 @@ export class Feed
     return episode.filePath
   }
 
-  toOldJSON(): Record<string, unknown> {
+  toOldJSON(): FeedOldJsonObject {
     const episodes = this.feedEpisodes?.map((feedEpisode) => feedEpisode.getOldEpisode())
     return {
       id: this.id,
@@ -890,7 +915,7 @@ export class Feed
     }
   }
 
-  toOldJSONMinified(): Record<string, unknown> {
+  toOldJSONMinified(): FeedOldJsonMinifiedObject {
     return {
       id: this.id,
       entityType: this.entityType,
