@@ -364,7 +364,144 @@ class Database {
     initModel(require('./models/CustomMetadataProvider'))
     initModel(require('./models/MediaItemShare'))
 
+    this.initAssociations()
+
     return this.sequelize.sync({ force, alter: false })
+  }
+
+  initAssociations() {
+    const {
+      user,
+      library,
+      book,
+      podcastEpisode,
+      collection,
+      collectionBook,
+      playlist,
+      playlistMediaItem,
+      mediaItemShare,
+      device,
+      session,
+      apiKey
+    } = this.sequelize.models
+
+    if (user && device) {
+      user.hasMany(device, {
+        onDelete: 'CASCADE'
+      })
+      device.belongsTo(user)
+    }
+
+    if (user && session) {
+      user.hasMany(session, {
+        onDelete: 'CASCADE',
+        foreignKey: {
+          allowNull: false
+        }
+      })
+      session.belongsTo(user)
+    }
+
+    if (user && apiKey) {
+      user.hasMany(apiKey, {
+        onDelete: 'CASCADE'
+      })
+      apiKey.belongsTo(user)
+
+      user.hasMany(apiKey, {
+        foreignKey: 'createdByUserId',
+        onDelete: 'SET NULL'
+      })
+      apiKey.belongsTo(user, { as: 'createdByUser', foreignKey: 'createdByUserId' })
+    }
+
+    if (user && mediaItemShare) {
+      user.hasMany(mediaItemShare)
+      mediaItemShare.belongsTo(user)
+    }
+
+    if (book && mediaItemShare) {
+      book.hasMany(mediaItemShare, {
+        foreignKey: 'mediaItemId',
+        constraints: false,
+        scope: {
+          mediaItemType: 'book'
+        }
+      })
+      mediaItemShare.belongsTo(book, { foreignKey: 'mediaItemId', constraints: false })
+    }
+
+    if (podcastEpisode && mediaItemShare) {
+      podcastEpisode.hasOne(mediaItemShare, {
+        foreignKey: 'mediaItemId',
+        constraints: false,
+        scope: {
+          mediaItemType: 'podcastEpisode'
+        }
+      })
+      mediaItemShare.belongsTo(podcastEpisode, { foreignKey: 'mediaItemId', constraints: false })
+    }
+
+    if (library && collection) {
+      library.hasMany(collection)
+      collection.belongsTo(library)
+    }
+
+    if (book && collection && collectionBook) {
+      book.belongsToMany(collection, { through: collectionBook })
+      collection.belongsToMany(book, { through: collectionBook })
+      book.hasMany(collectionBook, {
+        foreignKey: 'bookId',
+        onDelete: 'CASCADE'
+      })
+      collectionBook.belongsTo(book)
+      collection.hasMany(collectionBook, {
+        foreignKey: 'collectionId',
+        onDelete: 'CASCADE'
+      })
+      collectionBook.belongsTo(collection)
+    }
+
+    if (library && playlist) {
+      library.hasMany(playlist)
+      playlist.belongsTo(library)
+    }
+
+    if (user && playlist) {
+      user.hasMany(playlist, {
+        onDelete: 'CASCADE'
+      })
+      playlist.belongsTo(user)
+    }
+
+    if (playlist && playlistMediaItem) {
+      playlist.hasMany(playlistMediaItem, {
+        onDelete: 'CASCADE'
+      })
+      playlistMediaItem.belongsTo(playlist)
+    }
+
+    if (book && playlistMediaItem) {
+      book.hasMany(playlistMediaItem, {
+        foreignKey: 'mediaItemId',
+        constraints: false,
+        scope: {
+          mediaItemType: 'book'
+        }
+      })
+      playlistMediaItem.belongsTo(book, { foreignKey: 'mediaItemId', constraints: false })
+    }
+
+    if (podcastEpisode && playlistMediaItem) {
+      podcastEpisode.hasOne(playlistMediaItem, {
+        foreignKey: 'mediaItemId',
+        constraints: false,
+        scope: {
+          mediaItemType: 'podcastEpisode'
+        }
+      })
+      playlistMediaItem.belongsTo(podcastEpisode, { foreignKey: 'mediaItemId', constraints: false })
+    }
   }
 
   /**

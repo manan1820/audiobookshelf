@@ -11,6 +11,9 @@ const { areEquivalent, copyValue, isNullOrNaN } = require('../../utils')
 
 // REF: https://nodemailer.com/smtp/
 class EmailSettings {
+  /**
+   * @param {Object} [settings]
+   */
   constructor(settings = null) {
     this.id = 'email-settings'
     this.host = null

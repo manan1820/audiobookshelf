@@ -38,8 +38,8 @@ export type LegacyModel<M extends Model, S = {}> = ModelStatic<M> & Omit<S, 'ini
  */
 export interface DatabaseModels {
   userModel: typeof User
-  sessionModel: LegacyModel<Session, typeof Session>
-  apiKeyModel: LegacyModel<ApiKey, typeof ApiKey>
+  sessionModel: typeof Session
+  apiKeyModel: typeof ApiKey
   libraryModel: typeof Library
   libraryFolderModel: typeof LibraryFolder
   bookModel: typeof Book
@@ -51,17 +51,17 @@ export interface DatabaseModels {
   bookSeriesModel: typeof BookSeries
   authorModel: typeof Author
   bookAuthorModel: typeof BookAuthor
-  collectionModel: LegacyModel<Collection, typeof Collection>
-  collectionBookModel: LegacyModel<CollectionBook, typeof CollectionBook>
-  playlistModel: LegacyModel<Playlist, typeof Playlist>
-  playlistMediaItemModel: LegacyModel<PlaylistMediaItem, typeof PlaylistMediaItem>
-  deviceModel: LegacyModel<Device, typeof Device>
+  collectionModel: typeof Collection
+  collectionBookModel: typeof CollectionBook
+  playlistModel: typeof Playlist
+  playlistMediaItemModel: typeof PlaylistMediaItem
+  deviceModel: typeof Device
   playbackSessionModel: typeof PlaybackSession
   feedModel: typeof Feed
   feedEpisodeModel: typeof FeedEpisode
-  settingModel: LegacyModel<Setting, typeof Setting>
-  customMetadataProviderModel: LegacyModel<CustomMetadataProvider, typeof CustomMetadataProvider>
-  mediaItemShareModel: LegacyModel<MediaItemShare, typeof MediaItemShare>
+  settingModel: typeof Setting
+  customMetadataProviderModel: typeof CustomMetadataProvider
+  mediaItemShareModel: typeof MediaItemShare
 }
 
 // -------------------------------------------------------------
@@ -207,3 +207,54 @@ export interface LibraryItemAttributes {
 }
 export interface LibraryItemCreationAttributes
   extends Optional<LibraryItemAttributes, 'id' | 'ino' | 'media' | 'isFile' | 'mtimeMs' | 'ctimeMs' | 'birthtimeMs' | 'size' | 'isMissing' | 'isInvalid' | 'mediaItemShareId' | 'libraryFolderId' | 'createdAt' | 'updatedAt'> {}
+
+export type {
+  MediaItemShareAttributes,
+  MediaItemShareCreationAttributes
+} from '../models/MediaItemShare'
+
+export type {
+  CustomMetadataProviderAttributes,
+  CustomMetadataProviderCreationAttributes
+} from '../models/CustomMetadataProvider'
+
+export type {
+  CollectionAttributes,
+  CollectionCreationAttributes
+} from '../models/Collection'
+
+export type {
+  CollectionBookAttributes,
+  CollectionBookCreationAttributes
+} from '../models/CollectionBook'
+
+export type {
+  PlaylistAttributes,
+  PlaylistCreationAttributes
+} from '../models/Playlist'
+
+export type {
+  PlaylistMediaItemAttributes,
+  PlaylistMediaItemCreationAttributes
+} from '../models/PlaylistMediaItem'
+
+export type {
+  DeviceAttributes,
+  DeviceCreationAttributes
+} from '../models/Device'
+
+export type {
+  SessionAttributes,
+  SessionCreationAttributes
+} from '../models/Session'
+
+export type {
+  ApiKeyAttributes,
+  ApiKeyCreationAttributes
+} from '../models/ApiKey'
+
+export type {
+  SettingAttributes,
+  SettingCreationAttributes,
+  OldSettingsResult
+} from '../models/Setting'

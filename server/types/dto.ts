@@ -791,7 +791,7 @@ export interface LibraryItemOldJsonMinifiedObject {
   collapsedSeries?: SeriesMinimalJsonObject | null
   rssFeed?: FeedOldJsonObject | null
   numEpisodesIncomplete?: number
-  mediaItemShare?: unknown
+  mediaItemShare?: MediaItemShareOldJsonObject | null
 }
 
 export interface LibraryItemOldJsonExpandedObject extends Omit<LibraryItemOldJsonMinifiedObject, 'media'> {
@@ -1175,5 +1175,139 @@ export interface BinaryAssetInfo {
     | boolean
     | Record<string, Record<string, string>>
     | undefined
+}
+
+// ==========================================
+// 13. Peripheral Subsystem DTOs
+// ==========================================
+
+export interface MediaItemShareExtraData {
+  playbackSessionId?: string | null
+  [key: string]: string | number | boolean | null | undefined
+}
+
+export interface MediaItemShareOldJsonObject {
+  id: string
+  mediaItemId: string
+  mediaItemType: string
+  slug: string
+  expiresAt: Date | string | null
+  createdAt: Date | string | number
+  updatedAt: Date | string | number
+  isDownloadable: boolean
+}
+
+export interface MediaItemShareForClientObject extends MediaItemShareOldJsonObject {}
+
+export interface CollectionOldJsonObject {
+  id: string
+  libraryId: string
+  name: string
+  description: string | null
+  books: string[]
+  lastUpdate: number
+  createdAt: number
+}
+
+export interface CollectionOldJsonExpandedObject extends Omit<CollectionOldJsonObject, 'books'> {
+  books: LibraryItemOldJsonExpandedObject[]
+  rssFeed?: FeedOldJsonObject | null
+}
+
+export interface PlaylistOldJsonObject {
+  id: string
+  name: string
+  libraryId: string
+  userId: string
+  description: string | null
+  lastUpdate: number
+  createdAt: number
+}
+
+export interface PlaylistItemBookObject {
+  libraryItemId: string
+  libraryItem: LibraryItemOldJsonExpandedObject
+}
+
+export interface PlaylistItemEpisodeObject {
+  episodeId: string
+  episode: PodcastEpisodeOldJsonExpandedObject
+  libraryItemId: string
+  libraryItem: LibraryItemOldJsonMinifiedObject
+}
+
+export type PlaylistItemObject = PlaylistItemBookObject | PlaylistItemEpisodeObject
+
+export interface PlaylistOldJsonExpandedObject extends PlaylistOldJsonObject {
+  items: PlaylistItemObject[]
+}
+
+export interface DeviceExtraData {
+  manufacturer?: string | null
+  model?: string | null
+  osName?: string | null
+  osVersion?: string | null
+  browserName?: string | null
+}
+
+export interface DeviceOldJsonObject {
+  id: string
+  deviceId: string
+  userId: string
+  ipAddress: string | null
+  browserName: string | null
+  browserVersion: string | null
+  osName: string | null
+  osVersion: string | null
+  clientVersion: string | null
+  manufacturer: string | null
+  model: string | null
+  sdkVersion: string | null
+  deviceName: string | null
+  clientName: string | null
+}
+
+export interface ApiKeyPermissions {
+  download: boolean
+  update: boolean
+  delete: boolean
+  upload: boolean
+  createEreader: boolean
+  accessAllLibraries: boolean
+  accessAllTags: boolean
+  accessExplicitContent: boolean
+  selectedTagsNotAccessible: boolean
+  librariesAccessible: string[]
+  itemTagsSelected: string[]
+}
+
+export interface ApiKeyOldJsonObject {
+  id: string
+  name: string
+  description: string | null
+  expiresAt: Date | null
+  lastUsedAt: Date | null
+  isActive: boolean
+  permissions: ApiKeyPermissions
+  createdAt: Date
+  updatedAt: Date
+  userId: string
+  createdByUserId: string | null
+}
+
+export interface CustomMetadataProviderExtraData {
+  [key: string]: string | number | boolean | null | undefined
+}
+
+export interface ClientCustomMetadataProviderObject {
+  id: string
+  name: string
+  mediaType: string
+  slug: string
+}
+
+export interface SettingValueObject {
+  id: string
+  [key: string]: string | number | boolean | null | undefined | unknown[] | object
 }
 

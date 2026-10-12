@@ -3,6 +3,9 @@ const Notification = require('../Notification')
 const { isNullOrNaN } = require('../../utils')
 
 class NotificationSettings {
+  /**
+   * @param {Object} [settings]
+   */
   constructor(settings = null) {
     this.id = 'notification-settings'
     this.appriseType = 'api'

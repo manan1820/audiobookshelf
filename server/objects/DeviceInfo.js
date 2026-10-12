@@ -5,6 +5,9 @@ class DeviceInfo {
   /** @type {string[]} Fields to sanitize when loading from stored data */
   static stringFields = ['deviceId', 'clientVersion', 'manufacturer', 'model', 'sdkVersion', 'clientName', 'deviceName']
 
+  /**
+   * @param {Object} [deviceInfo]
+   */
   constructor(deviceInfo = null) {
     this.id = null
     this.userId = null

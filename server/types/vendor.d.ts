@@ -297,5 +297,41 @@ declare module 'semver' {
   export function clean(v: string | null | undefined): string | null
 }
 
+declare module 'jsonwebtoken' {
+  export interface SignOptions {
+    expiresIn?: string | number
+    algorithm?: string
+    [key: string]: unknown
+  }
+
+  export function sign(
+    payload: string | Buffer | object,
+    secretOrPrivateKey: string | Buffer,
+    options: SignOptions,
+    callback: (err: Error | null, encoded: string | undefined) => void
+  ): void
+
+  export function sign(
+    payload: string | Buffer | object,
+    secretOrPrivateKey: string | Buffer,
+    callback: (err: Error | null, encoded: string | undefined) => void
+  ): void
+
+  export function sign(
+    payload: string | Buffer | object,
+    secretOrPrivateKey: string | Buffer,
+    options?: SignOptions
+  ): string
+
+  export function verify(
+    token: string,
+    secretOrPublicKey: string | Buffer,
+    options?: unknown,
+    callback?: (err: Error | null, decoded: unknown) => void
+  ): void
+
+  export function decode(token: string, options?: unknown): unknown
+}
+
 
 

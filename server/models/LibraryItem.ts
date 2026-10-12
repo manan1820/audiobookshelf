@@ -35,7 +35,8 @@ import type {
   SeriesMinimalJsonObject,
   FeedOldJsonObject,
   BookOldJsonMinifiedObject,
-  PodcastOldJsonMinifiedObject
+  PodcastOldJsonMinifiedObject,
+  MediaItemShareOldJsonObject
 } from '../types'
 
 export type {
@@ -366,7 +367,7 @@ export class LibraryItem
           collapsedSeries?: SeriesMinimalJsonObject | null
           series?: unknown
           rssFeed?: { toOldJSONMinified: () => FeedOldJsonObject } | FeedOldJsonObject | null
-          mediaItemShare?: unknown
+          mediaItemShare?: MediaItemShareOldJsonObject | null
           numEpisodesIncomplete?: number
         }
         if (liAny.collapsedSeries) {
