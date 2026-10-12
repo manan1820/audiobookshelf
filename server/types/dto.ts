@@ -18,10 +18,16 @@ export interface AuthorOldJsonObject {
   updatedAt: number
 }
 
+export interface AuthorSeriesMapItem {
+  id: string
+  name: string
+  items: LibraryItemOldJsonMinifiedObject[]
+}
+
 export interface AuthorOldJsonExpandedObject extends AuthorOldJsonObject {
   numBooks: number
-  series?: unknown[]
-  libraryItems?: unknown[]
+  series?: (SeriesOldJsonObject | AuthorSeriesMapItem)[]
+  libraryItems?: LibraryItemOldJsonMinifiedObject[]
 }
 
 export interface AuthorMinimalJsonObject {
@@ -42,8 +48,8 @@ export interface SeriesOldJsonObject {
   updatedAt: number
   libraryId: string
   totalDuration?: number
-  rssFeed?: unknown
-  books?: unknown[]
+  rssFeed?: FeedOldJsonObject | null
+  books?: (BookOldJsonObject | BookOldJsonMinifiedObject)[]
 }
 
 export interface SeriesMinimalJsonObject {
