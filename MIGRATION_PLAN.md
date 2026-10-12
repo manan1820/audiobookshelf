@@ -27,6 +27,21 @@ The following 6 prohibitions and standards are enforced across every file and mi
 | **Gate 5: Zero Non-Null Assertions** | `expr!.prop`, `val!` | Optional chaining (`?.`), nullish coalescing (`??`), custom type guards, explicit error throws (`assertExists`) | Ingestion of corrupted OPF, NFO, or audio tags frequently causes null dereferences at runtime. |
 | **Gate 6: Zero Wildcard Dictionaries** | `Record<string, unknown>`, `Record<string, any>` | Strongly typed payload schemas, bounded generics, or explicit metadata shapes | Preserves schema contracts across API boundaries, managers, and persistence. |
 
+### 2.1 Zero Wildcard Dictionaries (`Record<string, unknown>`) Enforcement & Scope
+* **Strict Application Code Prohibition**: `Record<string, unknown>` and `Record<string, any>` are 100% prohibited across all application logic, including models, controllers, managers, parsers, and utility functions.
+* **Confined Ambient Exceptions Only**: The only permitted occurrences across the codebase are strictly restricted to:
+  1. Ambient vendor type declarations (`*.d.ts`) for un-typed third-party external libraries.
+  2. Generic runtime type predicate guards (`isObject(val): val is Record<string, unknown>`) in `server/types/common.ts`.
+* **Automated Audit Enforcement**: Milestone Check 6 in Section 7 automatically scans every milestone and fails immediately if any application file introduces wildcard dictionary types.
+
+### 2.2 Deferred Unmigrated Model Top-Type (`unknown`) Resolution Protocol
+* **Two Classes of Top-Type (`unknown`) Occurrences**:
+  * **Class A: Forbidden Lazy Shortcuts (0 Tolerated)**: Using `unknown` or `unknown[]` for models, associations, or DTO properties where the underlying domain entity is already migrated to TypeScript (e.g. `Author`, `Series`, `Book`, `User`). These are classified as quality gate violations and must be replaced immediately with concrete DTO interfaces (`AuthorOldJsonObject`, `SeriesOldJsonObject`, etc.).
+  * **Class B: Cross-Phase Deferred Model Placeholders (Temporary)**: Top-type placeholders for peripheral Sequelize models that still reside in unmigrated CommonJS files (e.g. `mediaItemShare?: unknown` in `server/types/dto.ts` awaiting `MediaItemShare.js`).
+* **Mandatory Synchronization on Model Migration**:
+  * As each remaining model is migrated to TypeScript in its respective phase (e.g., `MediaItemShare.ts`, `Collection.ts`, `Playlist.ts`, `Setting.ts`), the migration agent **MUST synchronously update all upstream DTOs and contracts** (`server/types/dto.ts` and `server/types/models.ts`), replacing the deferred `unknown` placeholder with the newly defined concrete DTO interface.
+  * No temporary `unknown` placeholder is permitted to persist once its backing model exists in TypeScript.
+
 ---
 
 ## 3. Directed Acyclic Graph (DAG) for Migration
@@ -287,6 +302,9 @@ To protect the context window from cognitive overload and ensure tight increment
     * `PlaybackSession.js` -> `PlaybackSession.ts`, `Playlist.js` -> `Playlist.ts`, `PlaylistMediaItem.js` -> `PlaylistMediaItem.ts`
     * `Podcast.js` -> `Podcast.ts`, `PodcastEpisode.js` -> `PodcastEpisode.ts`, `Series.js` -> `Series.ts`
     * `Session.js` -> `Session.ts`, `Setting.js` -> `Setting.ts`, `User.js` -> `User.ts`
+  * **Mandatory DTO Synchronization upon Model Conversion (Zero Lingering Deferred Placeholders)**:
+    * When peripheral models (`MediaItemShare.js`, `Collection.js`, `Playlist.js`, `Device.js`, `Setting.js`, etc.) are converted to TypeScript, any temporary Class B top-type placeholders (such as `mediaItemShare?: unknown` in `server/types/dto.ts` or un-typed settings in `server/types/models.ts`) **MUST be updated simultaneously** to concrete typed interfaces (e.g. `MediaItemShareOldJsonObject`).
+    * No deferred placeholder is permitted to linger once its corresponding model exists in TypeScript.
   * Database Orchestration:
     * `server/Database.js` -> `server/Database.ts` (implements `DatabaseModels` interface)
   * Migrations & Helpers:
@@ -300,9 +318,9 @@ To protect the context window from cognitive overload and ensure tight increment
 * **Verification**:
   1. `npm run build:server` (0 errors)
   2. `npm test` (all 358 tests pass)
-  3. `node test/dryRunSchema.js` (In-memory SQLite sync succeeds for all 25 models)
+  3. In-memory SQLite sync succeeds for all 25 models
   4. `npm run lint` (0 errors, 0 warnings)
-  5. Stealth audit (0 forbidden patterns)
+  5. Stealth audit (Checks 1-7 pass with 0 forbidden patterns or wildcards)
 
 ---
 
@@ -666,9 +684,9 @@ Every phase milestone MUST pass all verification gates before moving forward:
 [Phase Milestone Verification Workflow]
   ├── 1. Build Gate:        npm run build:server (0 tsc errors)
   ├── 2. Test Suite Gate:   npm test (358 tests pass, 0 fail, 0 regressions)
-  ├── 3. Schema Dry-Run:    node test/dryRunSchema.js (Phase 3 only: 25 models in-memory SQLite sync)
+  ├── 3. Schema Dry-Run:    node -e "..." (Phase 3 only: 25 models in-memory SQLite sync)
   ├── 4. Linter Gate:       npm run lint (0 ESLint errors, 0 warnings)
-  └── 5. Stealth Audit:     Static regex scan (0 violations)
+  └── 5. Stealth Audit:     Static regex scan (Checks 1-7: zero escape hatches, zero wildcards)
 ```
 
 ### Exact Milestone Commands
@@ -693,7 +711,7 @@ npm test
 #### 3. In-Memory SQLite Schema Dry-Run Test (Phase 3 Milestone Gate)
 Verify all 25 models synchronize in-memory without SQL collisions, column syntax errors, or invalid foreign keys:
 ```powershell
-node -e "const { Sequelize } = require('sequelize'); const seq = new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false }); const Database = require('./dist-server/server/Database'); const db = new Database(); db.sequelize = seq; db.buildModels(true).then(() => { console.log('Successfully synchronized all 25 Sequelize models in-memory!'); process.exit(0); }).catch(e => { console.error('Model schema sync failed:', e); process.exit(1); });"
+node -e "const { Sequelize } = require('sequelize'); const seq = new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false }); const db = require('./dist-server/server/Database'); db.sequelize = seq; db.buildModels(true).then(() => { console.log('Successfully synchronized all 25 Sequelize models in-memory!'); process.exit(0); }).catch(e => { console.error('Model schema sync failed:', e); process.exit(1); });"
 ```
 
 #### 4. Linter Verification
@@ -721,8 +739,8 @@ if ($neverCast) { $violations += "FORBIDDEN 'as never' found in:`n$($neverCast |
 $suppressions = Get-ChildItem -Path server -Recurse -Include *.ts,*.js | Select-String -Pattern "@ts-(ignore|nocheck)"
 if ($suppressions) { $violations += "FORBIDDEN '@ts-ignore/@ts-nocheck' found in:`n$($suppressions | Out-String)" }
 
-# 4. Check for ': any' or 'as any'
-$anyUsages = Get-ChildItem -Path server -Recurse -Include *.ts | Select-String -Pattern "(:\s*any\b|as\s+any\b)"
+# 4. Check for ': any' or 'as any' in application TypeScript code (excluding external ambient declarations *.d.ts)
+$anyUsages = Get-ChildItem -Path server -Recurse -Include *.ts -Exclude *.d.ts | Select-String -Pattern "(:\s*any\b|as\s+any\b)"
 if ($anyUsages) { $violations += "FORBIDDEN 'any' found in:`n$($anyUsages | Out-String)" }
 
 # 5. Check for non-null assertion operator '!'
@@ -730,11 +748,23 @@ if ($anyUsages) { $violations += "FORBIDDEN 'any' found in:`n$($anyUsages | Out-
 $nonNull = Get-ChildItem -Path server -Recurse -Include *.ts | Select-String -Pattern "\w+!\."
 if ($nonNull) { $violations += "FORBIDDEN non-null assertion '!.' found in:`n$($nonNull | Out-String)" }
 
+# 6. Check for wildcard dictionary types (Record<string, unknown> / Record<string, any>) in application code
+# Excludes ambient declarations (*.d.ts) and runtime guard utility server/types/common.ts
+$wildcards = Get-ChildItem -Path server -Recurse -Include *.ts,*.js -Exclude *.d.ts |
+    Where-Object { $_.FullName -notmatch 'server\\types\\common\.ts$' } |
+    Select-String -Pattern "Record<string,\s*(unknown|any)>"
+if ($wildcards) { $violations += "FORBIDDEN wildcard dictionary 'Record<string, unknown/any>' found in:`n$($wildcards | Out-String)" }
+
+# 7. Check for lingering lazy unknown shortcuts in DTO contracts for already converted models
+$lazyUnknowns = Get-ChildItem -Path server/types -Recurse -Include *.ts |
+    Select-String -Pattern "(author|series|shelf)\s*:\s*unknown"
+if ($lazyUnknowns) { $violations += "FORBIDDEN lazy unknown shortcut found in:`n$($lazyUnknowns | Out-String)" }
+
 if ($violations.Count -gt 0) {
     Write-Error "QUALITY GATE FAILED:`n$($violations -join "`n")"
     exit 1
 } else {
-    Write-Host "QUALITY GATE PASSED: Zero stealth hacks detected!" -ForegroundColor Green
+    Write-Host "QUALITY GATE PASSED: Zero stealth hacks or wildcards detected!" -ForegroundColor Green
 }
 ```
 
@@ -746,10 +776,14 @@ if ($violations.Count -gt 0) {
 ! grep -rn "as never" server/ || { echo "Failed: as never found"; exit 1; }
 # ts-ignore / ts-nocheck check
 ! grep -rnE "@ts-(ignore|nocheck)" server/ || { echo "Failed: compiler suppression found"; exit 1; }
-# any check in ts files
-! grep -rnE "(:[[:space:]]*any\b|as[[:space:]]+any\b)" server/ --include="*.ts" || { echo "Failed: any found"; exit 1; }
+# any check in ts application files (excluding ambient vendor .d.ts)
+! grep -rnE "(:[[:space:]]*any\b|as[[:space:]]+any\b)" server/ --include="*.ts" --exclude="*.d.ts" || { echo "Failed: any found"; exit 1; }
 # non-null assertion check
 ! grep -rnE "[a-zA-Z0-9_]+!\." server/ --include="*.ts" || { echo "Failed: non-null assertion found"; exit 1; }
+# wildcard dictionary check in application code (excluding ambient .d.ts and common.ts)
+! grep -rnE "Record<string,[[:space:]]*(unknown|any)>" server/ --include="*.ts" --include="*.js" --exclude="*.d.ts" --exclude="common.ts" || { echo "Failed: wildcard dictionary found"; exit 1; }
+# lazy unknown shortcut check
+! grep -rnE "(author|series|shelf)[[:space:]]*:[[:space:]]*unknown" server/types/ --include="*.ts" || { echo "Failed: lazy unknown shortcut found"; exit 1; }
 ```
 
 ---

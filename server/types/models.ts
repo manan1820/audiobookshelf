@@ -1,4 +1,5 @@
 import type { Model, ModelStatic, Optional } from 'sequelize'
+import type { LibrarySettingsObject } from './dto'
 import type User from '../models/User'
 import type Session from '../models/Session'
 import type ApiKey from '../models/ApiKey'
@@ -165,7 +166,7 @@ export interface LibraryAttributes {
   icon?: string | null
   mediaType: string
   provider?: string | null
-  settings?: Record<string, unknown> | null
+  settings?: Partial<LibrarySettingsObject> | null
   createdAt?: Date
   updatedAt?: Date
 }
