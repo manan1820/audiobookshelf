@@ -11,7 +11,9 @@ import type {
   UserPermissionsObject,
   UserOldJsonForBrowserObject,
   MediaProgressOldJsonObject,
-  PlaybackSessionOldJsonObject
+  PlaybackSessionOldJsonObject,
+  CreateUserPayload,
+  UpdateUserPayload
 } from '../types'
 import type MediaProgress from '../models/MediaProgress'
 
@@ -38,7 +40,7 @@ interface ApiRouterContext {
   }
   getUserListeningSessionsHelper?: (
     userId: string
-  ) => Promise<Array<Record<string, unknown>>>
+  ) => Promise<Array<PlaybackSessionOldJsonObject>>
   getUserListeningStatsHelpers?: (userId: string) => Promise<unknown>
 }
 
@@ -143,7 +145,7 @@ class UserController {
    * POST: /api/users
    */
   async create(req: RequestWithUser, res: Response): Promise<Response | void> {
-    const body = (req.body as Record<string, unknown>) ?? {}
+    const body = (req.body as CreateUserPayload) ?? {}
     const username = typeof body.username === 'string' ? body.username : ''
     const password = typeof body.password === 'string' ? body.password : ''
 
@@ -265,10 +267,10 @@ class UserController {
       )
       return res.sendStatus(403)
     } else if (user.isRoot) {
-      delete (req.body as Record<string, unknown>)?.type
+      delete (req.body as UpdateUserPayload)?.type
     }
 
-    const updatePayload = (req.body as Record<string, unknown>) ?? {}
+    const updatePayload = (req.body as UpdateUserPayload) ?? {}
 
     const keysThatCannotBeUpdated = ['id', 'pash', 'token', 'extraData', 'bookmarks']
     for (const key of keysThatCannotBeUpdated) {

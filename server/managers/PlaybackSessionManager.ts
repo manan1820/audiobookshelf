@@ -17,6 +17,11 @@ import type LibraryItem from '../models/LibraryItem'
 import type Podcast from '../models/Podcast'
 import type { AudioTrack } from '../models/Book'
 import type { Request, Response } from 'express'
+import type {
+  ClientDeviceInfoPayload,
+  BookOldMetadataJsonObject,
+  PodcastOldMetadataJsonObject
+} from '../types'
 
 const serverVersion = packageJson.version
 
@@ -93,7 +98,7 @@ class PlaybackSessionManager {
    * @param clientDeviceInfo
    * @returns
    */
-  async getDeviceInfo(req: Request, clientDeviceInfo: Record<string, unknown> | null = null): Promise<DeviceInfo> {
+  async getDeviceInfo(req: Request, clientDeviceInfo: ClientDeviceInfoPayload | null = null): Promise<DeviceInfo> {
     const userAgentHeader = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null
     const ua = uaParserJs(userAgentHeader)
     const ip = requestIp.getClientIp(req)
@@ -124,7 +129,7 @@ class PlaybackSessionManager {
    */
   async startSessionRequest(req: Request, res: Response, episodeId?: string): Promise<void> {
     const body = (req.body && typeof req.body === 'object' ? req.body : {}) as {
-      deviceInfo?: Record<string, unknown>
+      deviceInfo?: ClientDeviceInfoPayload
     }
     const clientDeviceInfo = body.deviceInfo ?? null
     const deviceInfo = await this.getDeviceInfo(req, clientDeviceInfo)
@@ -160,7 +165,7 @@ class PlaybackSessionManager {
 
   async syncLocalSessionsRequest(req: Request, res: Response): Promise<void> {
     const body = (req.body && typeof req.body === 'object' ? req.body : {}) as {
-      deviceInfo?: Record<string, unknown>
+      deviceInfo?: ClientDeviceInfoPayload
       sessions?: PlaybackSessionManager.LocalSessionPayload[]
     }
     const clientDeviceInfo = body.deviceInfo ?? null
@@ -268,8 +273,13 @@ class PlaybackSessionManager {
       }
 
       // Populate mediaMetadata with the current library items metadata for any keys not set by client
-      const libraryItemMedia = libraryItem.media as { oldMetadataToJSON?: () => Record<string, unknown> } | undefined
-      const libraryItemMediaMetadata = libraryItemMedia?.oldMetadataToJSON?.() ?? {}
+      const libraryItemMedia = libraryItem.media as {
+        oldMetadataToJSON?: () => BookOldMetadataJsonObject | PodcastOldMetadataJsonObject
+      } | undefined
+      const libraryItemMediaMetadata = (libraryItemMedia?.oldMetadataToJSON?.() ?? {}) as Record<
+        string,
+        string | number | boolean | null | undefined
+      >
       for (const key in libraryItemMediaMetadata) {
         if (session.mediaMetadata[key] === undefined) {
           session.mediaMetadata[key] = libraryItemMediaMetadata[key]
@@ -368,7 +378,7 @@ class PlaybackSessionManager {
    */
   async syncLocalSessionRequest(req: Request, res: Response): Promise<void> {
     const body = (req.body && typeof req.body === 'object' ? req.body : {}) as {
-      deviceInfo?: Record<string, unknown>
+      deviceInfo?: ClientDeviceInfoPayload
     }
     const clientDeviceInfo = body.deviceInfo ?? null
     const deviceInfo = await this.getDeviceInfo(req, clientDeviceInfo)

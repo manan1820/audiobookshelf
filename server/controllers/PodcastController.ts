@@ -19,6 +19,8 @@ import type LibraryItem from '../models/LibraryItem'
 import type { LibraryFileObject } from '../models/LibraryItem'
 import type Podcast from '../models/Podcast'
 import type { PodcastCreateRequestPayload } from '../models/Podcast'
+import type { PodcastEpisodeAttributes, ChapterObject } from '../models/PodcastEpisode'
+import type { UpdatePodcastEpisodePayload } from '../types'
 import type PodcastManager from '../managers/PodcastManager'
 
 interface RequestWithUser extends Request {
@@ -501,8 +503,9 @@ class PodcastController {
       return res.status(404).send('Episode not found')
     }
 
-    const updatePayload: Record<string, unknown> = {}
-    const body = (req.body ?? {}) as Record<string, unknown>
+    const updatePayload: Partial<PodcastEpisodeAttributes> &
+      Record<string, string | number | bigint | Date | ChapterObject[] | null | undefined> = {}
+    const body = (req.body ?? {}) as UpdatePodcastEpisodePayload
     const supportedStringKeys = [
       'title',
       'subtitle',
@@ -538,7 +541,7 @@ class PodcastController {
         updatePayload[key] = finalVal
       } else if (key === 'enclosure') {
         const enclosure = val as
-          | { url?: unknown; type?: unknown; length?: unknown }
+          | { url?: string; type?: string | null; length?: number | bigint | string | null }
           | null
           | undefined
         if (enclosure === null) {
@@ -554,8 +557,8 @@ class PodcastController {
           updatePayload.enclosureType =
             typeof enclosure.type === 'string' ? enclosure.type : null
           updatePayload.enclosureSize =
-            enclosure.length !== undefined && enclosure.length !== null
-              ? enclosure.length
+            enclosure.length !== undefined && enclosure.length !== null && !isNaN(Number(enclosure.length))
+              ? Number(enclosure.length)
               : null
         }
       } else if (
@@ -563,9 +566,9 @@ class PodcastController {
         Array.isArray(val) &&
         val.every((ch) => typeof ch === 'object' && ch !== null && 'title' in ch && 'start' in ch)
       ) {
-        updatePayload[key] = val
+        updatePayload.chapters = val as ChapterObject[]
       } else if (key === 'publishedAt' && typeof val === 'number') {
-        updatePayload[key] = val
+        updatePayload.publishedAt = new Date(val)
       }
     }
 

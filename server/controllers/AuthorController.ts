@@ -12,7 +12,11 @@ import AuthorFinder from '../finders/AuthorFinder'
 
 import { reqSupportsWebp, isValidASIN, clampPositiveInt } from '../utils/index'
 import type Author from '../models/Author'
-import type { AuthorOldJsonObject, LibraryItemOldJsonMinifiedObject } from '../types'
+import type {
+  AuthorOldJsonObject,
+  LibraryItemOldJsonMinifiedObject,
+  UpdateAuthorPayload
+} from '../types'
 import type User from '../models/User'
 import type LibraryItem from '../models/LibraryItem'
 
@@ -121,7 +125,7 @@ class AuthorController {
     }
 
     const keysToUpdate = ['name', 'description', 'asin']
-    const body = (req.body as Record<string, unknown>) ?? {}
+    const body = (req.body as UpdateAuthorPayload) ?? {}
     const payload: Record<string, string | null> = {}
     for (const key in body) {
       const val = body[key]

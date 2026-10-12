@@ -4,16 +4,13 @@ import Database from '../Database'
 
 import RssFeedManager from '../managers/RssFeedManager'
 import type User from '../models/User'
+import type { RssFeedRequestOptions } from '../types'
 
 interface RequestWithUser extends Request {
   user?: User
 }
 
-interface OpenFeedRequestBody {
-  serverAddress?: string
-  slug?: string
-  [key: string]: unknown
-}
+type OpenFeedRequestBody = RssFeedRequestOptions
 
 class RSSFeedController {
   constructor() {}

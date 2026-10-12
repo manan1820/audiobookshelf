@@ -1,6 +1,9 @@
 import ffprobe from '../libs/nodeFfprobe'
 import MediaProbeData from '../scanner/MediaProbeData'
 import Logger from '../Logger'
+import type { FfprobeRawOutput } from '../types'
+
+export type { FfprobeRawOutput }
 
 export interface ProbeStreamInfo {
   index?: number
@@ -332,7 +335,7 @@ function getDefaultAudioStream(audioStreams: ProbeStreamInfo[]): ProbeStreamInfo
   return defaultStream
 }
 
-function parseProbeData(data: Record<string, unknown>, verbose = false): CleanedProbeData | null {
+function parseProbeData(data: FfprobeRawOutput, verbose = false): CleanedProbeData | null {
   try {
     const format = (data.format as RawFormat) || {}
     const streams = (data.streams as RawStream[]) || []
@@ -414,7 +417,7 @@ export function probe(filepath: string, verbose = false): Promise<MediaProbeData
     })
 }
 
-export function rawProbe(filepath: string): Promise<Record<string, unknown> | { error: unknown }> {
+export function rawProbe(filepath: string): Promise<FfprobeRawOutput | { error: unknown }> {
   if (process.env.FFPROBE_PATH) {
     ffprobe.FFPROBE_PATH = process.env.FFPROBE_PATH
   }

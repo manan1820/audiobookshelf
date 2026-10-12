@@ -10,6 +10,7 @@ import type { FeedOptions } from '../models/Feed'
 import type LibraryItem from '../models/LibraryItem'
 import type Collection from '../models/Collection'
 import type Series from '../models/Series'
+import type { RssFeedRequestOptions, RssFeedMetadataDetails } from '../types'
 
 class RssFeedManager {
   constructor() {}
@@ -299,10 +300,10 @@ class RssFeedManager {
    * @param options
    * @returns
    */
-  getFeedOptionsFromReqOptions(options: Record<string, unknown>): FeedOptions {
+  getFeedOptionsFromReqOptions(options: RssFeedRequestOptions): FeedOptions {
     const metadataDetails =
       options.metadataDetails && typeof options.metadataDetails === 'object'
-        ? (options.metadataDetails as Record<string, unknown>)
+        ? options.metadataDetails
         : {}
 
     const preventIndexing = metadataDetails.preventIndexing !== false
@@ -323,7 +324,7 @@ class RssFeedManager {
   async openFeedForItem(
     userId: string,
     libraryItem: LibraryItem,
-    options: { serverAddress?: string; slug?: string; [key: string]: unknown }
+    options: RssFeedRequestOptions
   ): Promise<Feed | null> {
     const serverAddress = typeof options.serverAddress === 'string' ? options.serverAddress : ''
     const slug = typeof options.slug === 'string' ? options.slug : ''
@@ -354,7 +355,7 @@ class RssFeedManager {
   async openFeedForCollection(
     userId: string,
     collectionExpanded: Collection,
-    options: { serverAddress?: string; slug?: string; [key: string]: unknown }
+    options: RssFeedRequestOptions
   ): Promise<Feed | null> {
     const serverAddress = typeof options.serverAddress === 'string' ? options.serverAddress : ''
     const slug = typeof options.slug === 'string' ? options.slug : ''
@@ -384,7 +385,7 @@ class RssFeedManager {
   async openFeedForSeries(
     userId: string,
     seriesExpanded: Series,
-    options: { serverAddress?: string; slug?: string; [key: string]: unknown }
+    options: RssFeedRequestOptions
   ): Promise<Feed | null> {
     const serverAddress = typeof options.serverAddress === 'string' ? options.serverAddress : ''
     const slug = typeof options.slug === 'string' ? options.slug : ''

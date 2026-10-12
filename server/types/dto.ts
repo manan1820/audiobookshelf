@@ -831,3 +831,349 @@ export interface LibraryFilterOptions {
   [key: string]: unknown
 }
 
+// ==========================================
+// 10. OPF Metadata Parser Interfaces
+// ==========================================
+
+export interface MetadataCreatorObject {
+  value: string
+  role: string | null
+  fileAs: string | null
+}
+
+export interface OpfSeries {
+  name: string
+  sequence: string | null
+}
+
+export interface OpfMetadata {
+  title: string | null
+  subtitle: string | null
+  authors: string[]
+  narrators: string[]
+  publishedYear: string | null
+  publisher: string | null
+  isbn: string | null
+  asin: string | null
+  description: string | null
+  genres: string[]
+  language: string | null
+  series: OpfSeries[]
+  tags: string[]
+}
+
+export interface XmlAttributeNode<T = Record<string, string>> {
+  _?: string
+  $?: T
+}
+
+export interface XmlOpfMetaRefine {
+  value?: string
+  refines?: string
+  property?: string
+}
+
+export interface XmlOpfMetaNode {
+  _?: string
+  $?: {
+    name?: string
+    content?: string
+    refines?: string
+    property?: string
+    scheme?: string
+    [key: string]: string | undefined
+  }
+}
+
+export interface XmlOpfMetaDict {
+  refines?: XmlOpfMetaRefine[]
+  [key: string]: Array<string | XmlAttributeNode> | XmlOpfMetaRefine[] | undefined
+}
+
+export interface XmlOpfMetadata {
+  'dc:creator'?: Array<XmlAttributeNode | string>
+  'dc:date'?: Array<XmlAttributeNode | string>
+  'dc:publisher'?: Array<XmlAttributeNode | string>
+  'dc:identifier'?: Array<XmlAttributeNode | string>
+  'dc:title'?: Array<XmlAttributeNode | string>
+  'dc:subtitle'?: Array<XmlAttributeNode | string>
+  'dc:description'?: Array<XmlAttributeNode | string>
+  'dc:subject'?: Array<XmlAttributeNode | string>
+  'dc:language'?: Array<XmlAttributeNode | string>
+  'dc:tag'?: Array<XmlAttributeNode | string>
+  meta?: XmlOpfMetaDict | XmlOpfMetaNode[]
+  [key: string]:
+    | Array<XmlAttributeNode | string>
+    | XmlOpfMetaDict
+    | XmlOpfMetaNode[]
+    | undefined
+}
+
+export interface XmlOpfPackageNode {
+  metadata?: XmlOpfMetadata | XmlOpfMetadata[]
+  [key: string]: XmlOpfMetadata | XmlOpfMetadata[] | undefined
+}
+
+export interface XmlOpfPackage {
+  package?: XmlOpfPackageNode
+  [key: string]: XmlOpfPackageNode | undefined
+}
+
+// ==========================================
+// 11. RSS Feed Parser & Utility Interfaces
+// ==========================================
+
+export interface XmlRssCategory {
+  $?: {
+    text?: string
+    [key: string]: string | undefined
+  }
+  'itunes:category'?: XmlRssCategory[]
+}
+
+export interface XmlRssTextNode {
+  _?: string
+  $?: Record<string, string>
+}
+
+export type XmlRssValue = string | XmlRssTextNode | Record<string, string>
+
+export interface XmlRssItem {
+  title?: XmlRssValue[]
+  description?: XmlRssValue[]
+  pubDate?: XmlRssValue[]
+  guid?: XmlRssValue[]
+  link?: XmlRssValue[]
+  enclosure?: Array<{ $?: { url: string; type?: string; length?: string } }>
+  'media:content'?: Array<{ $?: { url: string; type?: string; length?: string } }>
+  'content:encoded'?: XmlRssValue[]
+  'podcast:chapters'?: Array<{ $?: { url?: string; type?: string } }>
+  'itunes:episodeType'?: XmlRssValue[]
+  'itunes:season'?: XmlRssValue[]
+  'itunes:episode'?: XmlRssValue[]
+  'itunes:author'?: XmlRssValue[]
+  'itunes:duration'?: XmlRssValue[]
+  'itunes:explicit'?: XmlRssValue[]
+  'itunes:subtitle'?: XmlRssValue[]
+  'psc:chapters'?: Array<{ 'psc:chapter'?: Array<{ $?: { title?: string; start?: string } }> }>
+  [key: string]:
+    | XmlRssValue[]
+    | Array<{ $?: { url: string; type?: string; length?: string } }>
+    | Array<{ $?: { url?: string; type?: string } }>
+    | Array<{ 'psc:chapter'?: Array<{ $?: { title?: string; start?: string } }> }>
+    | undefined
+}
+
+export interface XmlRssChannel {
+  title?: XmlRssValue[]
+  description?: XmlRssValue[]
+  language?: XmlRssValue[]
+  pubDate?: XmlRssValue[]
+  link?: XmlRssValue[]
+  image?: { url?: string[] }
+  item?: XmlRssItem[]
+  'itunes:image'?: Array<{ $?: { href?: string } }>
+  'itunes:category'?: XmlRssCategory[]
+  'itunes:new-feed-url'?: XmlRssValue[]
+  'itunes:explicit'?: XmlRssValue[]
+  'itunes:author'?: XmlRssValue[]
+  'itunes:type'?: XmlRssValue[]
+  'atom:link'?: Array<{ $?: { href?: string; [key: string]: string | undefined } }>
+  [key: string]:
+    | XmlRssValue[]
+    | XmlRssItem[]
+    | XmlRssCategory[]
+    | { url?: string[] }
+    | Array<{ $?: { href?: string } }>
+    | Array<{ $?: { href?: string; [key: string]: string | undefined } }>
+    | undefined
+}
+
+export interface XmlRssFeed {
+  channel?: XmlRssChannel[]
+  [key: string]: XmlRssChannel[] | undefined
+}
+
+// ==========================================
+// 12. Media Prober & Probe Data Interfaces
+// ==========================================
+
+export interface FfprobeRawStream {
+  index?: number
+  codec_type?: string
+  codec_name?: string
+  codec_long_name?: string
+  codec_time_base?: string
+  time_base?: string
+  bit_rate?: string | number
+  sample_rate?: string | number
+  channel_layout?: string
+  channels?: number
+  profile?: string
+  is_avc?: string | boolean
+  pix_fmt?: string
+  avg_frame_rate?: string
+  r_frame_rate?: string
+  width?: string | number
+  height?: string | number
+  color_range?: string
+  color_space?: string
+  color_transfer?: string
+  color_primaries?: string
+  disposition?: { default?: number | string }
+  tags?: Record<string, string>
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | Record<string, string>
+    | { default?: number | string }
+    | undefined
+}
+
+export interface FfprobeRawFormat {
+  name?: string
+  format_long_name?: string
+  size?: string | number
+  duration?: string | number
+  bit_rate?: string | number
+  tags?: Record<string, string>
+  [key: string]: string | number | Record<string, string> | undefined
+}
+
+export interface FfprobeRawChapter {
+  id?: number
+  title?: string
+  'TAG:title'?: string
+  time_base?: string
+  start?: string | number
+  start_time?: string | number
+  end?: string | number
+  end_time?: string | number
+  tags?: { title?: string }
+}
+
+export interface FfprobeRawOutput {
+  streams?: FfprobeRawStream[]
+  format?: FfprobeRawFormat
+  chapters?: FfprobeRawChapter[]
+  error?: { string?: string }
+}
+
+// ==========================================
+// 13. Controller & Manager Request/Response DTOs
+// ==========================================
+
+export interface ClientDeviceInfoPayload {
+  deviceId?: string | null
+  clientVersion?: string | null
+  manufacturer?: string | null
+  model?: string | null
+  sdkVersion?: string | number | null
+  clientName?: string | null
+  deviceName?: string | null
+}
+
+export interface CreateUserPayload {
+  username?: string
+  password?: string
+  type?: string
+  email?: string | null
+  isActive?: boolean
+  isLocked?: boolean
+  permissions?: Partial<UserPermissionsObject>
+  librariesAccessible?: string[]
+  itemTagsSelected?: string[]
+}
+
+export interface UpdateUserPayload {
+  id?: string
+  pash?: string
+  token?: string
+  extraData?: UserExtraData
+  bookmarks?: AudioBookmarkObject[]
+  username?: string
+  password?: string
+  type?: string
+  email?: string | null
+  isActive?: boolean
+  isLocked?: boolean
+  permissions?: Partial<UserPermissionsObject>
+  librariesAccessible?: string[]
+  itemTagsSelected?: string[]
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | null
+    | undefined
+    | UserExtraData
+    | AudioBookmarkObject[]
+    | Partial<UserPermissionsObject>
+    | string[]
+}
+
+export interface UserListeningStatsItem {
+  timeListening: number
+  [key: string]: string | number | boolean | null | undefined
+}
+
+export interface UserListeningStatsResponse {
+  totalTime: number
+  items: Record<string, UserListeningStatsItem>
+  days: Record<string, number>
+  dayOfWeek: Record<string, number>
+  today: number
+  recentSessions: PlaybackSessionOldJsonObject[]
+}
+
+export interface UpdateAuthorPayload {
+  name?: string | null
+  description?: string | null
+  asin?: string | null
+  [key: string]: string | null | undefined
+}
+
+export interface UpdatePodcastEpisodePayload {
+  title?: string
+  subtitle?: string
+  description?: string
+  pubDate?: string
+  episode?: string
+  season?: string
+  episodeType?: string
+  enclosure?: { url?: string; type?: string | null; length?: number | null } | null
+  chapters?: ChapterObject[]
+  publishedAt?: number
+  [key: string]:
+    | string
+    | number
+    | ChapterObject[]
+    | { url?: string; type?: string | null; length?: number | null }
+    | null
+    | undefined
+}
+
+export interface RssFeedMetadataDetails {
+  preventIndexing?: boolean
+  ownerName?: string | null
+  ownerEmail?: string | null
+}
+
+export interface RssFeedRequestOptions {
+  serverAddress?: string
+  slug?: string
+  metadataDetails?: RssFeedMetadataDetails
+  [key: string]: string | boolean | RssFeedMetadataDetails | undefined
+}
+
+export interface BinaryAssetInfo {
+  bin?: Record<string, Record<string, string>>
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | Record<string, Record<string, string>>
+    | undefined
+}
+

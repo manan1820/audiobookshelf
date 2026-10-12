@@ -8,6 +8,7 @@ import fs from '../libs/fsExtra'
 import Logger from '../Logger'
 import fileUtils from '../utils/fileUtils'
 import StreamZip from '../libs/nodeStreamZip'
+import type { BinaryAssetInfo } from '../types'
 
 const exec = promisify(child_process.exec)
 
@@ -17,10 +18,10 @@ interface FileToExtract {
 }
 
 abstract class ZippedAssetDownloader {
-  assetCache: Record<string, unknown> = {}
+  assetCache: Record<string, BinaryAssetInfo> = {}
 
   abstract getReleaseUrl(releaseTag: string): string
-  abstract extractAssetUrl(assets: unknown, assetName: string): string
+  abstract extractAssetUrl(assets: BinaryAssetInfo, assetName: string): string
   abstract getAssetName(binaryName: string, releaseTag: string): string
   abstract getAssetFileName(binaryName: string): string
 
@@ -172,10 +173,8 @@ class FFBinariesDownloader extends ZippedAssetDownloader {
     return `https://ffbinaries.com/api/v1/version/${releaseTag}`
   }
 
-  extractAssetUrl(assets: unknown, assetName: string): string {
-    const binRecord = (
-      assets as { bin?: Record<string, Record<string, string>> }
-    )?.bin
+  extractAssetUrl(assets: BinaryAssetInfo, assetName: string): string {
+    const binRecord = assets?.bin
     const assetUrl = binRecord?.[this.platformSuffix ?? '']?.[assetName]
 
     if (!assetUrl) {
@@ -225,7 +224,7 @@ class NunicodeDownloader extends ZippedAssetDownloader {
     throw new Error('Not implemented')
   }
 
-  extractAssetUrl(_assets: unknown, _assetName: string): string {
+  extractAssetUrl(_assets: BinaryAssetInfo, _assetName: string): string {
     throw new Error('Not implemented')
   }
 
