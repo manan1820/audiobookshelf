@@ -1,45 +1,57 @@
-const Sequelize = require('sequelize')
-const cron = require('../libs/nodeCron')
-const Logger = require('../Logger')
-const Database = require('../Database')
-const LibraryScanner = require('../scanner/LibraryScanner')
+import { Op } from 'sequelize'
+import cron from '../libs/nodeCron'
+import Logger from '../Logger'
+import Database from '../Database'
+import LibraryScanner from '../scanner/LibraryScanner'
+import ShareManager from './ShareManager'
+import type PodcastManager from './PodcastManager'
+import type PlaybackSessionManager from './PlaybackSessionManager'
+import type Library from '../models/Library'
+import type LibraryItem from '../models/LibraryItem'
+import type Podcast from '../models/Podcast'
 
-const ShareManager = require('./ShareManager')
+function isPodcastMedia(media: LibraryItem['media']): media is Podcast {
+  return !!media && 'autoDownloadEpisodes' in media
+}
+
+interface CronTask {
+  stop?: () => void
+}
+
+interface LibraryScanCron {
+  libraryId: string
+  expression: string
+  task: CronTask
+}
+
+interface PodcastCron {
+  libraryItemIds: string[]
+  expression: string
+  task: CronTask
+}
 
 class CronManager {
-  constructor(podcastManager, playbackSessionManager) {
-    /** @type {import('./PodcastManager')} */
-    this.podcastManager = podcastManager
-    /** @type {import('./PlaybackSessionManager')} */
-    this.playbackSessionManager = playbackSessionManager
+  podcastManager: PodcastManager
+  playbackSessionManager: PlaybackSessionManager
+  libraryScanCrons: LibraryScanCron[]
+  podcastCrons: PodcastCron[]
+  podcastCronExpressionsExecuting: string[]
 
+  constructor(podcastManager: PodcastManager, playbackSessionManager: PlaybackSessionManager) {
+    this.podcastManager = podcastManager
+    this.playbackSessionManager = playbackSessionManager
     this.libraryScanCrons = []
     this.podcastCrons = []
-
     this.podcastCronExpressionsExecuting = []
   }
 
-  /**
-   * Initialize library scan crons & podcast download crons
-   *
-   * @param {import('../models/Library')[]} libraries
-   */
-  async init(libraries) {
+  async init(libraries: Library[]): Promise<void> {
     this.initOpenSessionCleanupCron()
     this.initLibraryScanCrons(libraries)
     await this.initPodcastCrons()
   }
 
-  /**
-   * Initialize open session & auth session cleanup cron
-   * Runs every day at 00:30
-   * Closes open share sessions that have not been updated in 24 hours
-   * Closes open playback sessions that have not been updated in 36 hours
-   * Cleans up expired auth sessions
-   * Deactivates expired api keys
-   * TODO: Clients should re-open the session if it is closed so that stale sessions can be closed sooner
-   */
-  initOpenSessionCleanupCron() {
+  initOpenSessionCleanupCron(): void {
     cron.schedule('30 0 * * *', async () => {
       Logger.debug('[CronManager] Open session cleanup cron executing')
       ShareManager.closeStaleOpenShareSessions()
@@ -49,83 +61,65 @@ class CronManager {
     })
   }
 
-  /**
-   * Initialize library scan crons
-   * @param {import('../models/Library')[]} libraries
-   */
-  initLibraryScanCrons(libraries) {
+  initLibraryScanCrons(libraries: Library[]): void {
     for (const library of libraries) {
-      if (library.settings.autoScanCronExpression) {
+      if (library.settings?.autoScanCronExpression) {
         this.startCronForLibrary(library)
       }
     }
   }
 
-  /**
-   * Start cron schedule for library
-   *
-   * @param {import('../models/Library')} _library
-   */
-  startCronForLibrary(_library) {
-    Logger.debug(`[CronManager] Init library scan cron for ${_library.name} on schedule ${_library.settings.autoScanCronExpression}`)
-    const libScanCron = cron.schedule(_library.settings.autoScanCronExpression, async () => {
+  startCronForLibrary(_library: Library): void {
+    const expression = _library.settings?.autoScanCronExpression
+    if (!expression) return
+
+    Logger.debug(`[CronManager] Init library scan cron for ${_library.name} on schedule ${expression}`)
+    const libScanCron = cron.schedule(expression, async () => {
       const library = await Database.libraryModel.findByIdWithFolders(_library.id)
       if (!library) {
         Logger.error(`[CronManager] Library not found for scan cron ${_library.id}`)
       } else {
         Logger.debug(`[CronManager] Library scan cron executing for ${library.name}`)
-        LibraryScanner.scan(library)
+        void LibraryScanner.scan(library)
       }
-    })
+    }) as CronTask
+
     this.libraryScanCrons.push({
       libraryId: _library.id,
-      expression: _library.settings.autoScanCronExpression,
+      expression,
       task: libScanCron
     })
   }
 
-  /**
-   *
-   * @param {import('../models/Library')} library
-   */
-  removeCronForLibrary(library) {
+  removeCronForLibrary(library: Library): void {
     Logger.debug(`[CronManager] Removing library scan cron for ${library.name}`)
     this.libraryScanCrons = this.libraryScanCrons.filter((lsc) => lsc.libraryId !== library.id)
   }
 
-  /**
-   *
-   * @param {import('../models/Library')} library
-   */
-  updateLibraryScanCron(library) {
-    const expression = library.settings.autoScanCronExpression
+  updateLibraryScanCron(library: Library): void {
+    const expression = library.settings?.autoScanCronExpression
     const existingCron = this.libraryScanCrons.find((lsc) => lsc.libraryId === library.id)
 
     if (!expression && existingCron) {
       if (existingCron.task.stop) existingCron.task.stop()
-
       this.removeCronForLibrary(library)
     } else if (!existingCron && expression) {
       this.startCronForLibrary(library)
     } else if (existingCron && existingCron.expression !== expression) {
       if (existingCron.task.stop) existingCron.task.stop()
-
       this.removeCronForLibrary(library)
       this.startCronForLibrary(library)
     }
   }
 
-  /**
-   * Init cron jobs for auto-download podcasts
-   */
-  async initPodcastCrons() {
-    const cronExpressionMap = {}
+  async initPodcastCrons(): Promise<void> {
+    const cronExpressionMap: { [key: string]: { expression: string; libraryItemIds: string[] } } = {}
 
     const podcastsWithAutoDownload = await Database.podcastModel.findAll({
       where: {
         autoDownloadEpisodes: true,
         autoDownloadSchedule: {
-          [Sequelize.Op.not]: null
+          [Op.not]: null
         }
       },
       include: {
@@ -134,6 +128,7 @@ class CronManager {
     })
 
     for (const podcast of podcastsWithAutoDownload) {
+      if (!podcast.autoDownloadSchedule || !podcast.libraryItem) continue
       if (!cronExpressionMap[podcast.autoDownloadSchedule]) {
         cronExpressionMap[podcast.autoDownloadSchedule] = {
           expression: podcast.autoDownloadSchedule,
@@ -143,15 +138,16 @@ class CronManager {
       cronExpressionMap[podcast.autoDownloadSchedule].libraryItemIds.push(podcast.libraryItem.id)
     }
 
-    if (!Object.keys(cronExpressionMap).length) return
+    const expressions = Object.keys(cronExpressionMap)
+    if (!expressions.length) return
 
-    Logger.debug(`[CronManager] Found ${Object.keys(cronExpressionMap).length} podcast episode schedules to start`)
-    for (const expression in cronExpressionMap) {
+    Logger.debug(`[CronManager] Found ${expressions.length} podcast episode schedules to start`)
+    for (const expression of expressions) {
       this.startPodcastCron(expression, cronExpressionMap[expression].libraryItemIds)
     }
   }
 
-  startPodcastCron(expression, libraryItemIds) {
+  startPodcastCron(expression: string, libraryItemIds: string[]): void {
     try {
       if (!cron.validate(expression)) {
         Logger.error(`[CronManager] Invalid auto download schedule cron expression "${expression}" - not starting podcast episode check cron`)
@@ -163,37 +159,38 @@ class CronManager {
         if (this.podcastCronExpressionsExecuting.includes(expression)) {
           Logger.warn(`[CronManager] Podcast cron "${expression}" is already executing`)
         } else {
-          this.executePodcastCron(expression, libraryItemIds)
+          void this.executePodcastCron(expression)
         }
-      })
+      }) as CronTask
+
       this.podcastCrons.push({
         libraryItemIds,
         expression,
         task
       })
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error(`[PodcastManager] Failed to schedule podcast cron ${expression}`, error)
     }
   }
 
-  async executePodcastCron(expression) {
-    const podcastCron = this.podcastCrons.find((cron) => cron.expression === expression)
+  async executePodcastCron(expression: string): Promise<void> {
+    const podcastCron = this.podcastCrons.find((c) => c.expression === expression)
     if (!podcastCron) {
       Logger.error(`[CronManager] Podcast cron not found for expression ${expression}`)
       return
     }
     this.podcastCronExpressionsExecuting.push(expression)
 
-    const libraryItemIds = podcastCron.libraryItemIds
+    const libraryItemIds = [...podcastCron.libraryItemIds]
     Logger.debug(`[CronManager] Start executing podcast cron ${expression} for ${libraryItemIds.length} item(s)`)
 
     // Get podcast library items to check
-    const libraryItems = []
+    const libraryItems: LibraryItem[] = []
     for (const libraryItemId of libraryItemIds) {
       const libraryItem = await Database.libraryItemModel.getExpandedById(libraryItemId)
       if (!libraryItem) {
         Logger.error(`[CronManager] Library item ${libraryItemId} not found for episode check cron ${expression}`)
-        podcastCron.libraryItemIds = podcastCron.libraryItemIds.filter((lid) => lid !== libraryItemId) // Filter it out
+        podcastCron.libraryItemIds = podcastCron.libraryItemIds.filter((lid) => lid !== libraryItemId)
       } else {
         libraryItems.push(libraryItem)
       }
@@ -204,7 +201,7 @@ class CronManager {
       const keepAutoDownloading = await this.podcastManager.runEpisodeCheck(libraryItem)
       if (!keepAutoDownloading) {
         // auto download was disabled
-        podcastCron.libraryItemIds = podcastCron.libraryItemIds.filter((lid) => lid !== libraryItem.id) // Filter it out
+        podcastCron.libraryItemIds = podcastCron.libraryItemIds.filter((lid) => lid !== libraryItem.id)
       }
     }
 
@@ -218,17 +215,13 @@ class CronManager {
     this.podcastCronExpressionsExecuting = this.podcastCronExpressionsExecuting.filter((exp) => exp !== expression)
   }
 
-  removePodcastEpisodeCron(podcastCron) {
+  removePodcastEpisodeCron(podcastCron: PodcastCron): void {
     Logger.info(`[CronManager] Stopping & removing podcast episode cron for ${podcastCron.expression}`)
-    if (podcastCron.task) podcastCron.task.stop()
+    if (podcastCron.task?.stop) podcastCron.task.stop()
     this.podcastCrons = this.podcastCrons.filter((pc) => pc.expression !== podcastCron.expression)
   }
 
-  /**
-   *
-   * @param {import('../models/LibraryItem')} libraryItem
-   */
-  checkUpdatePodcastCron(libraryItem) {
+  checkUpdatePodcastCron(libraryItem: LibraryItem): void {
     // Remove from old cron by library item id
     const existingCron = this.podcastCrons.find((pc) => pc.libraryItemIds.includes(libraryItem.id))
     if (existingCron) {
@@ -239,18 +232,24 @@ class CronManager {
     }
 
     // Add to cron or start new cron
-    if (libraryItem.media.autoDownloadEpisodes && libraryItem.media.autoDownloadSchedule) {
-      const cronMatchingExpression = this.podcastCrons.find((pc) => pc.expression === libraryItem.media.autoDownloadSchedule)
+    if (isPodcastMedia(libraryItem.media) && libraryItem.media.autoDownloadEpisodes && typeof libraryItem.media.autoDownloadSchedule === 'string') {
+      const podcast = libraryItem.media
+      const autoDownloadSchedule = libraryItem.media.autoDownloadSchedule
+      const cronMatchingExpression = this.podcastCrons.find((pc) => pc.expression === autoDownloadSchedule)
       if (cronMatchingExpression) {
         cronMatchingExpression.libraryItemIds.push(libraryItem.id)
 
-        // TODO: Update after old model removed
-        const podcastTitle = libraryItem.media.title || libraryItem.media.metadata?.title
+        const podcastTitle = podcast.title || 'Unknown'
         Logger.info(`[CronManager] Added podcast "${podcastTitle}" to auto dl episode cron "${cronMatchingExpression.expression}"`)
       } else {
-        this.startPodcastCron(libraryItem.media.autoDownloadSchedule, [libraryItem.id])
+        this.startPodcastCron(autoDownloadSchedule, [libraryItem.id])
       }
     }
   }
 }
-module.exports = CronManager
+
+namespace CronManager {
+  export type CronManagerInstance = CronManager
+}
+
+export = CronManager

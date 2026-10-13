@@ -45,7 +45,7 @@ class LibraryScanner {
 
   /**
    *
-   * @param {import('../models/Library')} library
+   * @param {import('../models/Library').default} library
    * @param {boolean} [forceRescan]
    */
   async scan(library, forceRescan = false) {
@@ -297,7 +297,7 @@ class LibraryScanner {
 
   /**
    * Get scan data for library folder
-   * @param {import('../models/Library')} library
+   * @param {import('../models/Library').default} library
    * @param {import('../models/LibraryFolder')} folder
    * @returns {LibraryItemScanData[]}
    */
@@ -486,7 +486,7 @@ class LibraryScanner {
 
   /**
    * Scan grouped paths for library folder coming from Watcher
-   * @param {import('../models/Library')} library
+   * @param {import('../models/Library').default} library
    * @param {import('../models/LibraryFolder')} folder
    * @param {Record<string, string[]>} fileUpdateGroup
    * @returns {Promise<Record<string,number>>}

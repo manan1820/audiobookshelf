@@ -85,12 +85,12 @@ export interface TaskString {
 }
 
 export interface TaskData {
-  libraryItemId?: string
-  libraryItemDir?: string
-  itemCachePath?: string
-  libraryId?: string
-  libraryName?: string
-  [key: string]: string | number | boolean | null | undefined
+  libraryItemId?: string | null
+  libraryItemDir?: string | null
+  itemCachePath?: string | null
+  libraryId?: string | null
+  libraryName?: string | null
+  [key: string]: unknown
 }
 
 export interface TaskJsonObject {

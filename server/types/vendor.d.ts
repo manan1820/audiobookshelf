@@ -16,6 +16,17 @@ declare module 'express' {
     sameSite?: boolean | 'lax' | 'strict' | 'none'
   }
 
+  export interface UploadedFile {
+    name: string
+    mv(path: string, callback?: (err: unknown) => void): Promise<void>
+    mimetype?: string
+    data?: Buffer
+    tempFilePath?: string
+    truncated?: boolean
+    size?: number
+    md5?: string
+  }
+
   export interface Request extends import('http').IncomingMessage, Express.Request {
     url: string
     method: string
@@ -31,6 +42,7 @@ declare module 'express' {
     ips?: string[]
     xhr?: boolean
     hostname?: string
+    files?: { [key: string]: UploadedFile | UploadedFile[] } | null
     get(name: string): string | undefined
     header(name: string): string | undefined
   }
@@ -345,5 +357,62 @@ declare module 'jsonwebtoken' {
   export function decode(token: string, options?: unknown): unknown
 }
 
+declare module 'nodemailer' {
+  export interface SendMailOptions {
+    from?: string | null
+    to?: string | null
+    subject?: string
+    text?: string
+    html?: string
+    attachments?: Array<{
+      filename: string
+      path: string
+    }>
+  }
+
+  export interface SentMessageInfo {
+    messageId?: string
+    [key: string]: unknown
+  }
+
+  export interface Transporter {
+    verify(): Promise<boolean>
+    sendMail(mailOptions: SendMailOptions): Promise<SentMessageInfo>
+  }
+
+  export function createTransport(transportOptions?: unknown): Transporter
+}
+
+declare module 'sqlite3' {
+  export interface SqliteBackup {
+    completed: boolean
+    failed: boolean
+    message?: string
+    step(pages: number): void
+    finish(): void
+  }
+
+  export class Database {
+    constructor(filename: string, callback?: (err: Error | null) => void)
+    backup(filename: string): SqliteBackup
+    close(callback?: (err: Error | null) => void): void
+  }
+}
+
+declare module '../libs/readChunk' {
+  function readChunk(filePath: string, start: number, length: number): Promise<Buffer>
+  export = readChunk
+}
+
+declare module '../libs/imageType' {
+  namespace imageType {
+    export interface ImageTypeResult {
+      ext: string
+      mime: string
+    }
+  }
+  function imageType(input: Buffer | Uint8Array): imageType.ImageTypeResult | null
+  export = imageType
+}
 
 

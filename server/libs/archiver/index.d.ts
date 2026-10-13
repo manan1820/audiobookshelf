@@ -12,6 +12,7 @@ export interface Archiver extends Transform {
   file(source: string, data: { name: string }): this
   append(source: NodeJS.ReadableStream | Buffer | string, data: { name: string }): this
   finalize(): Promise<void>
+  abort(): this
 }
 
 declare function archiver(format: string, options?: ArchiverOptions): Archiver
